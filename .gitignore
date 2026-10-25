@@ -1,0 +1,20 @@
+# Python environments
+.venv/
+.venv-incomplete/
+
+# Python generated files
+__pycache__/
+*.py[cod]
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Original PDFs and generated text
+data/raw/
+data/processed/
+
+# Local settings
+.vscode/
+.DS_Store
