@@ -64,6 +64,41 @@ def clean_text(text):
     return normalized, changes
 
 
+def remove_confirmed_artifacts(record, text):
+    """Remove verified PDF headers and footers."""
+    paper_id = record["paper_id"]
+    page = record["pdf_page"]
+    changes = []
+
+    title = (
+        "A Survey on Hallucination in Large Language Models: "
+        "Principles, Taxonomy, Challenges, and Open Questions"
+    )
+
+    headers = {
+        ("P001", 31): f"1:31\n\n{title}",
+        ("P001", 50): "Huang, et al.\n\n1:50",
+        ("P001", 53): f"1:53\n\n{title}",
+    }
+
+    header = headers.get((paper_id, page))
+
+    if header and (
+        text == header or text.startswith(header + "\n")
+    ):
+        text = text[len(header):].lstrip("\n").strip()
+        changes.append("removed_verified_running_header")
+
+    if (paper_id, page) == ("P003", 24):
+        revised = re.sub(r"\n\s*12099\s*$", "", text).rstrip()
+
+        if revised != text:
+            text = revised
+            changes.append("removed_verified_page_footer:12099")
+
+    return text, changes
+
+
 def find_review_flags(record, text):
     """Identify content that needs checking against the source PDF."""
 
@@ -145,6 +180,10 @@ def main():
             seen_pages.add(page_key)
 
             cleaned_text, changes = clean_text(original_text)
+            cleaned_text, artifact_changes = remove_confirmed_artifacts(
+                record, cleaned_text
+            )
+            changes.extend(artifact_changes)
             flags = find_review_flags(record, cleaned_text)
 
             # Copy the original record to preserve its source metadata.

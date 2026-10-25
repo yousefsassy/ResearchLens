@@ -23,7 +23,53 @@ Record what is removed or changed and why.
 
 ## Chunking decisions
 
-Record chunk size, overlap, and the reasons for these choices.
+### Chunking strategy
+
+The cleaned research papers are divided into smaller text chunks for downstream retrieval-augmented generation (RAG).
+
+**Implementation:** `src/ingestion/chunk.py`
+
+**Configuration:**
+
+- Target chunk size: 1,500 characters
+- Overlap: approximately 200 characters
+- Splitting strategy: paragraph-aware, with sentence-based splitting for oversized paragraphs
+- Page boundaries: preserved
+- Output: `data/processed/chunks.jsonl`
+
+**Design decisions:**
+
+1. Paragraph boundaries are preferred to preserve semantic coherence.
+2. Overlap helps retain context between adjacent chunks.
+3. Each chunk retains its paper ID, PDF filename, and PDF page number to support traceable citations.
+4. Cleaning review flags are propagated to chunks so potentially problematic source pages can be identified during retrieval.
+5. Original extracted and cleaned page files remain unchanged.
+
+**Validation results:**
+
+- Input: 156 cleaned PDF pages across 5 research papers
+- Output: 612 chunks
+- Invalid records: 0
+- Duplicate chunk IDs: 0
+- Empty chunks: 0
+- Chunks exceeding 1,800 characters: 0
+- Chunks carrying page-level review flags: 245
+
+Chunking is structurally validated. Manual inspection of short chunks and flagged source regions remains necessary before treating all chunks as reliable evidence.
+
+**Post-chunking cleanup:**
+
+Manual inspection of short chunks identified PDF formatting artifacts.
+Four targeted corrections were applied during the cleaning stage:
+
+- P001, pages 31, 50, and 53: removed repeated running headers.
+- P003, page 24: removed a page-number footer (`12099`).
+
+After regeneration, the total number of chunks decreased from 615 to 612.
+Legitimate short passages, figure captions, and section headings were preserved.
+
+The pipeline is structurally validated. However, flagged source regions
+still require manual verification before being used as reliable evidence.
 
 ## P002 — SelfCheckGPT extraction inspection
 
