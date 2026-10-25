@@ -17,3 +17,8 @@ data/processed/
 # Local settings
 .vscode/
 .DS_Store
+# Member 2 generated retrieval artifacts
+data/indexes/
+eval/results/
+.pytest_cache/
+.cache/
