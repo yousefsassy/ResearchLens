@@ -11,8 +11,7 @@ __pycache__/
 .env.*
 !.env.example
 
-# Original PDFs and generated text
-data/raw/
+# Generated data (reproducible)
 data/processed/
 
 # Local settings
