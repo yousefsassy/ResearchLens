@@ -1,6 +1,6 @@
 # ResearchLens
 
-ResearchLens retrieves evidence from research papers on LLM hallucinations. Member 2 provides passage retrieval and citation metadata; Member 3 will add answer generation and the UI.
+ResearchLens retrieves evidence from research papers on LLM hallucinations. Member 2 provides passage retrieval and citation metadata; Phase 3 adds grounded hosted generation with traceable citations. Application/UI integration remains separate.
 
 ## Start here
 
@@ -38,3 +38,25 @@ Git ignores `data/processed/`, `data/indexes/`, `eval/results/` and `.cache/`. A
 ```powershell
 .venv\Scripts\python.exe -m pytest tests/ -q
 ```
+
+## Phase 3 generation
+
+Generation uses **free OpenRouter models only**, with no paid fallback. See the
+[generation guide](docs/generation_design.md) for setup, the Python/JSON interface,
+paper comparisons, error behavior, and evaluation. The default model is
+`nvidia/nemotron-3-super-120b-a12b:free`; pricing is verified before inference.
+
+On Linux/macOS, after installing requirements in a Python 3.11 virtual environment:
+
+```bash
+cp .env.example .env
+# Add your own OPENROUTER_API_KEY to the ignored .env.
+.venv/bin/python scripts/ask_researchlens.py --live \
+  --question "How does SelfCheckGPT detect hallucinations?" --paper-ids P002
+```
+
+This requires the agreed processed corpus, matching index, and BGE model cache.
+Generation does not restore or regenerate them. Tests use mocked providers and
+need no API key. The real-corpus test skips when processed chunks are absent.
+The 20 generation evaluation cases are **drafts pending human review**; no live
+generation accuracy or faithfulness benchmark is claimed.
