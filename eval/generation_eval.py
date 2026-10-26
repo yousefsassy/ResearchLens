@@ -113,7 +113,7 @@ def capture(cases: list[EvalCase], generator: ResearchGenerator, track: str,
             if track == "end-to-end" and generator.retriever is not None and hasattr(generator.retriever, "status"):
                 report["retrieval_status"] = generator.retriever.status()
             _save(output, report)
-            if response.error and response.error.code in {"quota_exhausted", "attempt_limit", "missing_api_key", "authentication_failed"}:
+            if response.error and response.error.code in {"attempt_limit", "ollama_unavailable", "model_not_installed", "local_model_required"}:
                 break
     finally:
         if track == "fixed":

@@ -10,7 +10,9 @@ class StrictModel(BaseModel):
 
 class SourceQuote(StrictModel):
     source_id: str = Field(min_length=1)
-    quote: str = Field(min_length=1)
+    quote: str = Field(min_length=1, description=(
+        "A short contiguous verbatim span from this source. Preserve all punctuation, Markdown markers, "
+        "and internal spaces. Do not paraphrase, stitch spans, or add a final period."))
 
 
 class Claim(StrictModel):
@@ -22,7 +24,9 @@ class Claim(StrictModel):
 class ModelAnswer(StrictModel):
     status: Literal["complete", "partial", "abstained"]
     claims: list[Claim]
-    limitations: list[str]
+    limitations: list[str] = Field(description=(
+        "Missing evidence or uncertainty only. For partial or abstained status, include at least one "
+        "nonempty explanation. An empty array is permitted only for a complete answer."))
 
     @model_validator(mode="after")
     def consistent_status(self):

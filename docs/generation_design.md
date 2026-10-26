@@ -1,69 +1,114 @@
-# Phase 3: grounded hosted generation
+# Phase 3: grounded local generation
 
-`src.generation` adds a synchronous Python interface and CLI around the existing
-retrieval API. Ingestion, retrieval, their tests, and retrieval metrics are unchanged.
-Generation imports do not load retrieval, model weights, `.env`, or credentials.
-`GenerationConfig.from_env()` explicitly loads configuration; environment variables
-override the repository-root `.env` file.
+Phase 3 uses the already installed **Qwen `qwen3:8b` through local Ollama**.
+OpenRouter is no longer used. No API key, cloud model, automatic model download,
+or hosted fallback is required. The source-selection, grounded prompt, claim-level
+citation checks, structured responses, and generation evaluator remain in place.
+Ingestion and retrieval implementations are unchanged.
 
-## Setup and actual verification
+## Setup and configuration
 
-Use Python 3.11. From the project root:
+Use Python 3.11 and install the project requirements in a virtual environment.
+Ollama is a separate local service. Check it before running generation:
+
+```bash
+ollama list
+ollama ps
+```
+
+The current development machine has `qwen3:8b` installed and serves Ollama on
+port 11434. The client checks `/api/tags` and requires installed GGUF weights.
+It never calls a pull endpoint or selects another model. Start `ollama serve`
+only if the Ollama service is not already running.
 
 ```bash
 python3.11 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
-cp .env.example .env
+test -f .env || cp .env.example .env
 ```
 
-On Windows, use `.venv\Scripts\python.exe` instead. Add your own OpenRouter key to
-the ignored `.env`; do not publish it. `.env.example` deliberately has no key.
+If `.env` already exists, update the settings below instead of overwriting it.
+On Windows use `.venv\Scripts\python.exe` in place of `.venv/bin/python`.
 
-For development without PDF/neural libraries, the mocked test suite needs only:
+```dotenv
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=qwen3:8b
+OLLAMA_NUM_CTX=8192
+OLLAMA_TIMEOUT_SECONDS=180
+RESEARCHLENS_MAX_TOKENS=2048
+RESEARCHLENS_CONTEXT_CHARS=12000
+```
+
+`GenerationConfig.from_env()` reads the repository-root `.env` explicitly; real
+process environment variables override its values. Old `OPENROUTER_*` settings
+are ignored, and credentials are not part of the configuration/response schema.
+Importing `src.generation` never reads `.env`, initializes retrieval, or loads weights.
+
+The URL must be loopback (`127.0.0.1`, `localhost`, or `::1`). The built-in client
+ignores HTTP proxy variables and does not follow redirects. Cloud-backed tags
+are rejected. No public model catalog is contacted. Tests use mocked HTTP transport;
+normal generation contacts only local Ollama.
+
+## Retrieval prerequisites
+
+Real hybrid retrieval still requires the agreed `data/processed/chunks.jsonl`,
+matching `data/indexes/`, retrieval dependencies, and cached BGE model. Obtain these
+artifacts from the team; do not regenerate them casually. Generation does not
+replace BGE with Qwen or change the retrieval index.
+
+The documented 638-chunk corpus fingerprint is
+`817fa270d2b7842bd86dbdb0a5d5f89d08170eb3c5937a184851098f4cab1713`.
+The original 612-chunk outputs remain unavailable. Corpus/index/label versions must
+match. Missing artifacts return `retrieval_unavailable` before generation.
+
+For mocked tests without PDF/neural libraries:
 
 ```bash
 .venv/bin/python -m pip install httpx pydantic python-dotenv numpy rank-bm25 'pytest>=8,<9'
 .venv/bin/python -m pytest tests/ -q
 ```
 
-Real hybrid retrieval additionally requires the agreed `data/processed/chunks.jsonl`,
-matching `data/indexes/`, and cached BGE model. Obtain the agreed artifacts from the
-team. Do not regenerate them casually: changing extraction/chunking invalidates
-indexes and labels. The documented 638-chunk handoff fingerprint is
-`817fa270d2b7842bd86dbdb0a5d5f89d08170eb3c5937a184851098f4cab1713`.
-The earlier 612-chunk outputs remain unavailable. This implementation does not
-resolve that historical discrepancy or certify the current corpus.
+The real-corpus test skips if processed chunks are absent. Passing mocked tests
+is not evidence of live retrieval or model accuracy.
 
-At implementation time Python 3.11 was provisioned in `.venv`, with the minimal
-mock-test dependencies above. No PDF/neural packages or model weights were
-downloaded. The original suite produced **61 passed, 1 skipped**: the real-corpus
-BM25 test skips because the agreed chunks are absent. Live retrieval, live
-generation, and semantic quality remain unverified until artifacts and a key
-are supplied. Do not interpret mocked passing tests as real-model accuracy.
+On 2026-10-26 a real local `qwen3:8b` call answered the SelfCheckGPT detection
+question using a preserved draft passage: **three claims with three structurally
+validated citations**, 1,371 input tokens, 293 output tokens, and about 59.6 seconds
+for generation. The report is `eval/results/local_qwen_smoke.json` (ignored by Git).
+This verifies actual local inference and the citation path for one supplied
+passage; it does not verify full-corpus retrieval or establish benchmark quality.
+An earlier smoke failed quote checks because Qwen changed Markdown spacing and
+punctuation. Prompt version 1.1 requests concise answers and short verbatim spans;
+the strict quote validator remains unchanged and rejects those alterations.
+The real local abstention smoke also passed: with only SelfCheckGPT evidence,
+Qwen declined an unrelated lunar-vehicle question, returned zero claims, and
+explained the missing evidence in about 21.3 seconds. Its report is
+`eval/results/local_qwen_abstention_smoke.json`. These are developer smoke checks,
+not human-approved evaluation results.
 
-## Public interface
+## Public interface and CLI
 
 ```python
 from src.generation import GenerationConfig, ResearchGenerator
 
-config = GenerationConfig.from_env()
-generator = ResearchGenerator(config=config)
+generator = ResearchGenerator(config=GenerationConfig.from_env())
 try:
     result = generator.answer(
         'What limitations do the SelfCheckGPT authors identify?',
         paper_ids=['P002'],
         answer_type='auto',
     )
-    response = result.model_dump(mode='json')
+    response_json = result.model_dump(mode='json')
 finally:
     generator.close()
 ```
 
-For integration, inject an existing `ResearchRetriever` and/or a client implementing
-`complete(messages) -> (ModelAnswer, Metrics)`. The generator otherwise constructs
-the retriever lazily on the first answer requiring evidence. Reuse instances for
-serial requests; concurrency is outside this version's contract. A client owns a
-shared maximum of 25 inference attempts, including failures and retries.
+The default transport is `OllamaClient`, exported from `src.generation`. The former
+`OpenRouterClient` and API-key configuration have been removed. Inject an existing
+`ResearchRetriever` and/or a client implementing
+`complete(messages) -> (ModelAnswer, Metrics)` for integration or testing. Without
+injection, retrieval is constructed lazily. Reuse instances for serial requests;
+parallel use is outside this version's contract.
 
 ```bash
 .venv/bin/python scripts/ask_researchlens.py --live \
@@ -73,135 +118,113 @@ shared maximum of 25 inference attempts, including failures and retries.
   --paper-ids P002 P003 --answer-type comparison
 ```
 
-The CLI requires `--live` before it can send inference requests. Library callers
-invoke `answer()` explicitly; that may call OpenRouter when evidence is available.
-Input/configuration errors are distinct from missing evidence. Questions requiring
-clarification and empty usable retrieval make no hosted inference calls.
+`--live` explicitly enables real **local** inference. Library `answer()` calls can
+also trigger local inference when evidence is available. Ambiguous paper scope and
+empty usable retrieval do not invoke Qwen. The CLI requires real retrieval artifacts.
+For fixed-evidence model tests use the evaluator or inject `FixedEvidenceRetriever`.
 
-The response is versioned JSON (`schema_version: "1.0"`) with `question`,
-`answer_type`, `status`, `answer`, `claims`, `citations`, `evidence`, `paper_ids`,
-`abstained`, `limitations`, `clarification`, `error`, and `metrics`.
-`status` is `complete`, `partial`, `abstained`, `needs_clarification`, or `error`.
-`error` and `clarification` are nullable objects. Titles and unavailable usage
-fields are nullable. API failures never count as evidence abstention.
+## Evidence and citation contract
 
-Each claim has `text`, `kind` (`reported`/`synthesis`), and source/quote citations.
-Each resolved citation includes a deterministic `C1`-style ID, one-based claim
-index, source ID, quote, paper ID, PDF filename/title, one-based PDF position,
-and chunk ID. Pages are **PDF positions**, not printed page labels. The UI can
-look up `source_id` in `evidence` and display the complete supporting passage.
-Render returned strings as text, not trusted HTML.
+`data/papers_generation.json` contains display titles checked against each local
+PDF's first page. It is separate from the teammate-owned manifest. Exact paper IDs
+and explicit aliases resolve deterministically. Unknown/vague references and
+conflicting scopes require clarification. Two-paper comparisons are supported;
+"this paper" needs an application-supplied ID. This is a simple alias resolver,
+not exhaustive named-entity recognition.
 
-## Paper scope and retrieval
+QA calls Phase 2 with `top_k=8`, `mode="hybrid"`, `rerank=False`, and
+`exclude_flagged=True`, then retains up to six unique passages. Comparisons query
+methods/findings/limitations independently per paper (only requested aspects for
+narrow comparisons), retaining two passages per aspect and six per paper at most.
+Repeated IDs and duplicate text within a paper merge. Identical text from different
+papers retains its separate provenance.
 
-`data/papers_generation.json` is generation-owned. Its display titles were checked
-against the first page of each local PDF. No authors/year/license fields are guessed,
-and the teammate-owned manifest is untouched. IDs and aliases resolve deterministically.
-An unresolved named paper, vague "this paper", or incomplete paper comparison
-returns clarification; explicit paper IDs resolve vague references. Conflicting
-named and supplied scopes require clarification. Two-paper comparisons are the
-maximum for this version. Alias matching is intentionally simple, not an exhaustive
-named-entity recognizer; application-selected IDs provide the most reliable scope.
+Whole passages are selected round-robin across papers within 12,000 text characters.
+The smaller local budget limits RAM/context usage. Budget exclusions are recorded,
+and known evidence gaps force partial answers. Source IDs are assigned after final
+selection. No RRF confidence threshold is invented. Flagged evidence is excluded
+without fallback; unflagged text can still contain extraction errors.
 
-General/single-paper QA calls the existing `search` with `top_k=8`, `mode="hybrid"`,
-`rerank=False`, `paper_ids=scope`, `exclude_flagged=True`, and retains six unique
-passages. Broad comparisons make three aspect queries (methods, findings,
-limitations) independently for each paper, retaining two unique passages per
-aspect, six per paper at most. Narrow comparisons query the named aspects only.
-Exact duplicates within a paper and repeated IDs merge. Identical statements
-from different papers retain separate attribution.
+The prompt requires claims based only on supplied evidence, explicit attribution
+of contradictory findings, and separation of reported facts from synthesis. It
+forbids invented bibliographic details, unreported results, and rankings based on
+incompatible experimental tasks/metrics. The question and passages are untrusted
+data, including any embedded instructions. Unsupported components produce partial
+answers or abstention, never answers from model memory.
 
-Whole passages are selected round-robin across papers under a 24,000-character
-text budget. This is not a tokenizer limit; the prompt adds metadata/instructions,
-well within the verified free endpoints' advertised context sizes. Source IDs are
-assigned only after selection. Source text and citation identity remain intact.
-Unexpected scope/filename/metadata failures stop generation.
+Local validation checks the output schema, required citations on every claim,
+source IDs, whitespace-normalized quote occurrence, and both-paper citations for
+comparison synthesis. Local code attaches original paper/page/chunk metadata and
+renders `[C1]` citation markers. Invalid output is withheld in full. No automatic
+repair call is made. These checks establish structural integrity, **not semantic
+entailment**; a real quote can be misinterpreted. Human faithfulness review remains
+necessary, especially with an 8B model and damaged scientific text.
 
-Flagged evidence is excluded without automatic fallback. Flags are incomplete.
-Missing paper/aspect evidence and context-budget exclusions are explicit limitations.
-There is no fabricated RRF confidence threshold. A high ranking or nonempty result
-does not establish semantic sufficiency. The generator assesses missing components
-in its one answer call, and known local gaps force a partial status when claims
-are otherwise available.
+## Structured response
 
-## Grounding and citation boundaries
+The JSON response retains `schema_version: "1.0"` and these fields:
 
-The versioned prompt requests atomic claims using supplied evidence only,
-separates reported findings from synthesis, and treats question/passages as untrusted
-data. It forbids invented references, unsupported numerical findings, and ranking
-studies with incompatible tasks/datasets/metrics. Conflicting findings must remain
-attributed with their experimental context. Missing components produce partial
-answers; no support produces abstention.
+- `question`, `answer_type`, `paper_ids`: original question and resolved scope.
+- `status`: `complete`, `partial`, `abstained`, `needs_clarification`, or `error`.
+- `answer`, `claims`, `citations`, `evidence`: rendered text, cited atomic claims,
+  trusted citation metadata, and complete selected passages.
+- `abstained`, `limitations`: evidence abstention and missing-component warnings.
+- `clarification`, `error`: nullable clarification and sanitized error objects.
+- `metrics`: model/provider, attempts, stage latency, native tokens, and API cost.
 
-The LLM supplies only source IDs and quotes, not authoritative bibliographic fields.
-Local validation checks schema, required claim citations, source membership,
-whitespace-normalized quote occurrence, and both-paper citations for comparison
-synthesis. Local code attaches paper/page/chunk metadata and renders `[C1]` markers.
-Invalid output is withheld in full while evidence and usage remain available.
-There is no automatic repair call.
+Claim kinds are `reported`/`synthesis`. Citation IDs and claim indices are one-based.
+Citations contain source ID/quote, paper ID, filename/title, PDF position, and chunk
+ID. Pages are **one-based PDF positions**, not printed page labels. UI code can
+look up each `source_id` in `evidence`; render strings as text rather than trusted
+HTML. API/runtime failures are distinct from evidence-based abstention.
 
-These are **structural checks, not semantic entailment proofs**. A real quote can
-be misinterpreted, contradictory evidence can be overlooked, and reported/synthesis
-labels can be misused. Human claim-level evaluation remains required. The model's
-limitations are uncertainty text, not independently verified factual statements.
+## Local runtime and failures
 
-## OpenRouter policy and failures
+Requests use Ollama's `/api/chat` with `stream: false`, `think: false`, temperature
+zero, and `ModelAnswer.model_json_schema()` in `format`. The same schema is supplied
+in the prompt. Output must finish with `done: true`, `done_reason: "stop"`, the
+configured model, and valid JSON before citation validation. Length-truncated,
+empty, or invalid output is withheld.
 
-The default is `nvidia/nemotron-3-super-120b-a12b:free`. Before each answer call the
-client reads the public model catalog, requires an exact `:free` ID and zero listed
-pricing, and sends provider price caps of zero. Catalog/network/price verification
-failure prevents inference. No automatic model or paid fallback is configured.
+Defaults suit the detected 16 GiB development machine: 8,192 context tokens,
+2,048 maximum generated tokens, and a 12,000-character evidence budget. Character
+budgeting is not exact tokenization: reduce context or increase `OLLAMA_NUM_CTX`
+when unusual text or long questions need more room. Larger context windows consume
+more RAM. Generation keeps Qwen loaded for five minutes to reduce warm latency.
+No extra model weights are downloaded.
 
-Schema-capable models receive JSON Schema with `strict: true` and
-`provider.require_parameters: true`. An explicitly selected JSON-only alternative
-(e.g. `google/gemma-4-31b-it:free`) receives JSON-object mode plus the same local
-validator and schema in the prompt. An unsupported schema request is an error,
-never a silent second request with weaker guarantees. Another evaluation candidate
-is `nvidia/nemotron-3.5-super-vl:free`. Availability must be verified live; no
-ResearchLens quality ranking between these models has been established.
+Connection timeout is five seconds; network read timeout defaults to 180 seconds.
+Loading/inference can take longer on CPU. A timeout returns `request_timeout`
+without automatically starting a duplicate expensive job. Connection failures return
+`ollama_unavailable`, absent weights return `model_not_installed`, and cloud tags
+return `local_model_required`. Runtime/memory errors return `ollama_error` without
+exposing raw service details. One attempt is the default; explicitly configured
+server-error retries are bounded to two. The shared client cap is 25 attempts.
 
-Defaults: non-streaming, 4096 output tokens, low reasoning effort where supported,
-5-second connection and 60-second network timeouts, two inference attempts maximum.
-Reasoning may consume output tokens; truncation/refusal fails validation. HTTP timeouts
-bound network operations, not a strict end-to-end deadline. Free services have no
-guaranteed latency/availability. Only public paper passages/questions should be sent;
-the NVIDIA endpoint documents provider-side logging.
+Metrics map `prompt_eval_count`/`eval_count` to input/output tokens and identify
+provider `ollama`. There is no hosted API charge (`cost_usd: 0`); hardware/electricity
+cost is not measured. Missing token counts remain null with incomplete accounting.
+Thinking is disabled. Stage timings include model loading when applicable; compare
+cold and warm latencies separately.
 
-Missing keys, permanent request/authentication/model errors, and credit errors
-return sanitized errors. Short transient rate limits/server failures/timeouts get
-one retry; daily quota and waits exceeding 30 seconds stop promptly. HTTP-200 error
-bodies are checked. Raw provider bodies/headers and API keys are never included in
-returned errors. Code does not log credentials. Caller-enabled HTTP debug logging
-is outside this module.
+Official references:
+[chat API](https://docs.ollama.com/api/chat),
+[structured output](https://docs.ollama.com/capabilities/structured-outputs),
+[thinking controls](https://docs.ollama.com/capabilities/thinking).
 
-Metrics record interpretation/retrieval/generation/validation/total elapsed time,
-configured model, latest provider/request ID, attempts, and reported usage/cost.
-All known attempt usage is summed. Unknown values remain null; accounting completeness
-is false when an attempt's usage is missing. Known subtotals do not imply complete
-billing knowledge. No paid API calls are needed to test these behaviors.
+## Evaluation
 
-References checked during implementation:
-[structured output](https://openrouter.ai/docs/guides/features/structured-outputs),
-[errors](https://openrouter.ai/docs/api/reference/errors-and-debugging),
-[usage](https://openrouter.ai/docs/cookbook/administration/usage-accounting).
+The 20 cases in `eval/generation_questions.draft.jsonl` remain **unapproved drafts**:
+4 general, 5 scoped, 4 comparison, 4 insufficient-evidence, and 3 extraction-sensitive.
+Some preserved fixed passages come from unapproved retrieval labels; missing contexts
+and reference rubrics require human review. Do not fabricate text/IDs to make a case
+runnable. The intentionally incomplete comparison and three damaged-context cases
+are fixed-track-only. Use topical non-answering contexts for semantic abstention
+tests, not only empty evidence.
 
-## Generation evaluation
-
-The 20-case `eval/generation_questions.draft.jsonl` is **not human approved**.
-Its 4 general, 5 paper-specific, 4 comparison, 4 insufficient-evidence, and 3
-extraction-sensitive cases include draft rubrics and source references. Some fixed
-contexts come from the existing unapproved draft's preserved supporting passages;
-others must be supplied and checked by humans. No source evidence is fabricated
-to make a missing case runnable. A comparison with deliberately missing evidence
-and the three damaged-context cases are fixed-track-only; their constrained
-contexts must not be confused with full-corpus retrieval.
-
-Before benchmarking, review reference components, add missing fixed evidence,
-verify expected status, record a reviewer, and freeze a separate approved dataset.
-Abstention tests should include unrelated/topical passages, not just empty input.
-For flagged-only stress tests supply real flagged chunk records from the agreed
-corpus; do not invent their text or IDs. Human approval is enforced by the runner;
-`--allow-draft` is an explicit debugging exception and never enables final claims.
+Freeze a separate approved dataset with real reviewer metadata before benchmarking.
+`--allow-draft` is a debugging exception, not approval. Fixed track injects supplied
+passages without neural retrieval; end-to-end uses the real pipeline.
 
 ```bash
 .venv/bin/python eval/generation_eval.py run --live --track fixed \
@@ -212,16 +235,13 @@ corpus; do not invent their text or IDs. Human approval is enforced by the runne
   --output eval/results/generation.e2e.json
 ```
 
-Fixed track injects supplied evidence without neural retrieval. End-to-end uses
-the real pipeline. Both save each completed case, preserve configuration/dataset
-hash/prompt version, and share a 25-attempt cap. Existing reports are not overwritten.
-Daily quota/key/attempt-cap failures stop the run; `run_complete` identifies whether
-all planned cases ran. End-to-end records retrieval status/fingerprint metadata
-when available. Results are under ignored `eval/results/`.
+Each completed response is saved with dataset hash, prompt version, configuration,
+and response hash. Existing reports are not overwritten. Model/service/cap errors
+stop the runner; `run_complete` marks whether every planned case was processed.
+End-to-end captures retrieval status/fingerprint when available. Reports and smoke
+results are under ignored `eval/results/`.
 
-Score offline using an independently human-authored JSON mapping from question ID
-to a review. For each response use its captured `response_sha256` to prevent stale
-reviews from being applied to a different run:
+Score offline with an independently human-authored JSON mapping:
 
 ```json
 {
@@ -238,33 +258,25 @@ reviews from being applied to a different run:
 }
 ```
 
-Claim indices are one-based. Component IDs refer to the case rubric, not citation
-IDs, despite both examples using `C1`. Only credit genuinely correct/supported
-items, and review failures too (with empty supported lists when appropriate).
+Component IDs refer to the case rubric, distinct from citation IDs. Credit genuinely
+correct/supported items only; review errors too. Response hashes reject stale reviews.
 
 ```bash
 .venv/bin/python eval/generation_eval.py score \
   --report eval/results/generation.fixed.json --reviews /path/to/human_reviews.json
 ```
 
-The scorer reports component correctness, claim faithfulness, citation support and
-coverage, comparison completeness, abstention precision/recall (excluding partial
-and clarification targets), status accuracy, structural validity, success rate,
-p50/p95 latencies, known usage subtotals, and denominators. Missing human judgments
-yield incomplete/provisional scores, never automatic semantic credit. API errors
-are failures, not correct abstentions. Final quality gates require a complete,
-approved, fully reviewed run, structural validity throughout, at least .90 faithfulness
-and citation accuracy, .80 correctness, and no factual answers or failed abstentions
-on intentionally unsupported cases. Passing a tiny fixture is not a 20-case pilot;
-report actual sample size.
+Metrics cover correctness, faithfulness, citation accuracy/coverage, comparison
+completeness, abstention precision/recall, status accuracy, structural validity,
+success rate, native tokens, and p50/p95 latency with explicit denominators. Missing
+human judgments cannot earn automatic semantic credit. Runtime errors are failures,
+not correct abstentions. Quality gates require a complete, approved, fully reviewed
+run, structural validity throughout, .90 faithfulness/citation accuracy, .80 correctness,
+and no factual answers or failed abstentions on intentionally unsupported cases.
 
-The initial live pilot remains pending artifacts, credentials, and human approval.
-The assignment's 120-case target (40 development/80 held-out: 25 general, 45 scoped,
-25 comparison, 15 insufficient, 10 extraction-sensitive) also requires real human
-annotation with Member 4. This implementation supplies the tools, not fabricated
-approved judgments or a claimed completed benchmark.
-
-Next week's optimization should target a 50% p95 latency reduction with at most
-two accuracy points lost on frozen labels. A zero-dollar inference baseline cannot
-show a meaningful 50% cost reduction. UI/service/deployment, parallel requests,
-semantic verifier models, and automatic model selection remain Phase 4/future work.
+One live fixed-evidence smoke is not a completed pilot or full retrieval test.
+The 120-case assignment target (40 development/80 held-out: 25 general, 45 scoped,
+25 comparison, 15 insufficient, 10 extraction-sensitive) still needs human annotation
+with Member 4. Next week's optimization can target 50% p95 latency reduction with
+at most two accuracy points lost on frozen labels. UI/service/deployment, parallel
+requests, and automated semantic verifiers remain future work.

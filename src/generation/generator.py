@@ -4,7 +4,7 @@ import time
 from pydantic import ValidationError
 
 from .citations import validate_and_render
-from .client import GenerationFailure, OpenRouterClient
+from .client import GenerationFailure, OllamaClient
 from .config import GenerationConfig
 from .evidence import select_evidence
 from .papers import interpret, load_catalog
@@ -16,7 +16,7 @@ class ResearchGenerator:
     def __init__(self, retriever=None, client=None, config: GenerationConfig | None = None):
         self.config = config or GenerationConfig.from_env()
         self.retriever = retriever
-        self.client = client or OpenRouterClient(self.config)
+        self.client = client or OllamaClient(self.config)
         self.catalog = load_catalog(self.config.catalog_path)
 
     def close(self):

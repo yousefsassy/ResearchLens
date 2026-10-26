@@ -1,6 +1,6 @@
 # ResearchLens
 
-ResearchLens retrieves evidence from research papers on LLM hallucinations. Member 2 provides passage retrieval and citation metadata; Phase 3 adds grounded hosted generation with traceable citations. Application/UI integration remains separate.
+ResearchLens retrieves evidence from research papers on LLM hallucinations. Member 2 provides passage retrieval and citation metadata; Phase 3 adds grounded local Qwen generation with traceable citations. Application/UI integration remains separate.
 
 ## Start here
 
@@ -19,6 +19,7 @@ Preserve the existing `data/processed/chunks.jsonl` and matching `data/indexes/`
 |---|---|
 | `src/ingestion/`, `data/raw/` | Member 1 pipeline and original PDFs; preserved |
 | `src/retrieval/`, `scripts/` | Retrieval API, index builder, query and smoke tools |
+| `src/generation/` | Local Ollama/Qwen answers, citation validation, structured response |
 | `tests/` | Automated behavior checks |
 | [Design](docs/retrieval_design.md) | Setup, API example, models and configuration |
 | [Results](docs/retrieval_results.md) | Verified index, tests, saved preliminary comparison |
@@ -41,16 +42,17 @@ Git ignores `data/processed/`, `data/indexes/`, `eval/results/` and `.cache/`. A
 
 ## Phase 3 generation
 
-Generation uses **free OpenRouter models only**, with no paid fallback. See the
+Generation uses **local `qwen3:8b` through Ollama**, with no hosted fallback or API key. See the
 [generation guide](docs/generation_design.md) for setup, the Python/JSON interface,
-paper comparisons, error behavior, and evaluation. The default model is
-`nvidia/nemotron-3-super-120b-a12b:free`; pricing is verified before inference.
+paper comparisons, error behavior, and evaluation. The client verifies that the
+configured model's weights are already installed; it never downloads a model.
 
 On Linux/macOS, after installing requirements in a Python 3.11 virtual environment:
 
 ```bash
-cp .env.example .env
-# Add your own OPENROUTER_API_KEY to the ignored .env.
+ollama list
+test -f .env || cp .env.example .env
+# In an existing .env, set OLLAMA_MODEL=qwen3:8b.
 .venv/bin/python scripts/ask_researchlens.py --live \
   --question "How does SelfCheckGPT detect hallucinations?" --paper-ids P002
 ```

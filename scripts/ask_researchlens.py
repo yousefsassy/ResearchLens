@@ -1,4 +1,4 @@
-"""Ask ResearchLens. Inference requires explicit --live; no paid fallback."""
+"""Ask ResearchLens using local Ollama. Inference requires explicit --live."""
 import argparse
 from pathlib import Path
 import sys
@@ -13,10 +13,10 @@ def main() -> int:
     parser.add_argument("--question", required=True)
     parser.add_argument("--paper-ids", nargs="*")
     parser.add_argument("--answer-type", choices=["auto", "qa", "comparison"], default="auto")
-    parser.add_argument("--live", action="store_true", help="Enable free hosted inference")
+    parser.add_argument("--live", action="store_true", help="Enable inference with installed local Ollama weights")
     args = parser.parse_args()
     if not args.live:
-        parser.error("No request sent. Add --live to enable free hosted inference.")
+        parser.error("No request sent. Add --live to enable local inference.")
     try:
         generator = ResearchGenerator(config=GenerationConfig.from_env())
     except (ValueError, OSError):
