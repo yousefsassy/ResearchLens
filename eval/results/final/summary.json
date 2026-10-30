@@ -1,0 +1,573 @@
+{
+  "question_count": 105,
+  "status_distribution": {
+    "complete": 64,
+    "error": 8,
+    "partial": 25,
+    "needs_clarification": 3,
+    "abstained": 5
+  },
+  "status_accuracy": 0.7238095238095238,
+  "citation_validation_pass_rate": 0.9175257731958762,
+  "citation_validation_denominator": 97,
+  "accuracy": 0.9454545454545454,
+  "completeness": 0.9041666666666667,
+  "semantic_citation_support": 0.9636363636363636,
+  "semantic_evaluated_questions": 60,
+  "semantic_coverage": 0.5714285714285714,
+  "semantic_status_distribution": {
+    "evaluated": 60,
+    "judge_error": 37,
+    "not_evaluated": 8
+  },
+  "judge_error_stages": {
+    "judgment_validation": 37
+  },
+  "semantic_score_scope": "Successfully judged responses only; not overall run accuracy",
+  "semantic_method": "optional_llm_judge_unverified",
+  "ground_truth_verified": false,
+  "latency": {
+    "interpretation_seconds": {
+      "count": 105,
+      "mean": 0.00030564190542680167,
+      "median": 0.00024140000459738076,
+      "p90": 0.00036277998005971316,
+      "p95": 0.00040525998920202253
+    },
+    "retrieval_seconds": {
+      "count": 105,
+      "mean": 0.18275757618858257,
+      "median": 0.042005900002550334,
+      "p90": 0.18283544000005378,
+      "p95": 0.23162827999913133
+    },
+    "generation_seconds": {
+      "count": 105,
+      "mean": 4.185098368570852,
+      "median": 3.6398880000051577,
+      "p90": 7.505013399990283,
+      "p95": 9.134506599983432
+    },
+    "validation_seconds": {
+      "count": 105,
+      "mean": 0.00014530761788288752,
+      "median": 0.0001345000055152923,
+      "p90": 0.0002484399941749871,
+      "p95": 0.0003368400153703987
+    },
+    "total_seconds": {
+      "count": 105,
+      "mean": 4.369957187618795,
+      "median": 3.6808697000087705,
+      "p90": 8.059332939999878,
+      "p95": 9.62882119998685
+    }
+  },
+  "usage": {
+    "attempts": {
+      "known_subtotal": 117,
+      "known_questions": 105
+    },
+    "prompt_tokens": {
+      "known_subtotal": 696450,
+      "known_questions": 102
+    },
+    "completion_tokens": {
+      "known_subtotal": 37495,
+      "known_questions": 102
+    },
+    "reasoning_tokens": {
+      "known_subtotal": 0,
+      "known_questions": 102
+    }
+  },
+  "estimated_cost_usd": null,
+  "cost_known_subtotal_usd": null,
+  "cost_known_questions": 0,
+  "cost_scope": "generation only; judge usage reported separately; no default pricing assumed",
+  "judge_usage": {
+    "input_tokens": 543374,
+    "output_tokens": 38827,
+    "attempts": 97
+  },
+  "repair_frequency": 0.14705882352941177,
+  "initial_generation_latency": {
+    "count": 102,
+    "mean": 3.6945014980395654,
+    "median": 3.5934318999934476,
+    "p90": 5.531333159998758,
+    "p95": 6.27524343499972
+  },
+  "additional_repair_latency": {
+    "count": 15,
+    "mean": 4.172864646666373,
+    "median": 3.9511784000205807,
+    "p90": 5.980537819984602,
+    "p95": 6.322403449990087
+  },
+  "failure_categories": {
+    "citation_validation": 8,
+    "status_mismatch": 29,
+    "invalid_model_output": 8,
+    "judge_flagged_factual_issue": 4,
+    "judge_flagged_missing_component": 2,
+    "judge_flagged_citation_support": 3
+  },
+  "cold_start_latency": {
+    "count": 1,
+    "mean": 17.310168600000907,
+    "median": 17.310168600000907,
+    "p90": 17.310168600000907,
+    "p95": 17.310168600000907
+  },
+  "warm_latency": {
+    "count": 104,
+    "mean": 4.24553207788435,
+    "median": 3.647604700003285,
+    "p90": 7.748642739999925,
+    "p95": 9.42474546999146
+  },
+  "cold_start_note": "Cold means first pipeline call in each process, not a cleared OS disk cache.",
+  "by_category": {
+    "clarification": {
+      "count": 2,
+      "status_distribution": {
+        "needs_clarification": 2
+      },
+      "status_accuracy": 1.0,
+      "latency": {
+        "count": 2,
+        "mean": 0.00022304999583866447,
+        "median": 0.00022304999583866447,
+        "p90": 0.0002431699977023527,
+        "p95": 0.00024568499793531373
+      },
+      "semantic_evaluated_questions": 0,
+      "accuracy": null,
+      "completeness": null,
+      "semantic_citation_support": null,
+      "citation_validation_pass_rate": null
+    },
+    "comparison": {
+      "count": 12,
+      "status_distribution": {
+        "error": 3,
+        "complete": 3,
+        "partial": 6
+      },
+      "status_accuracy": 0.3333333333333333,
+      "latency": {
+        "count": 12,
+        "mean": 7.792270541666464,
+        "median": 7.052815350005403,
+        "p90": 11.66324318998959,
+        "p95": 11.90544718499441
+      },
+      "semantic_evaluated_questions": 3,
+      "accuracy": 1.0,
+      "completeness": 0.8333333333333334,
+      "semantic_citation_support": 1.0,
+      "citation_validation_pass_rate": 0.75
+    },
+    "definitions": {
+      "count": 6,
+      "status_distribution": {
+        "partial": 2,
+        "complete": 4
+      },
+      "status_accuracy": 0.6666666666666666,
+      "latency": {
+        "count": 6,
+        "mean": 4.734137133331387,
+        "median": 3.9625096000090707,
+        "p90": 7.532284749991959,
+        "p95": 7.885175374991377
+      },
+      "semantic_evaluated_questions": 5,
+      "accuracy": 1.0,
+      "completeness": 1.0,
+      "semantic_citation_support": 1.0,
+      "citation_validation_pass_rate": 1.0
+    },
+    "experimental_setup": {
+      "count": 7,
+      "status_distribution": {
+        "complete": 6,
+        "partial": 1
+      },
+      "status_accuracy": 0.8571428571428571,
+      "latency": {
+        "count": 7,
+        "mean": 4.519232628567677,
+        "median": 3.7101721999933943,
+        "p90": 7.423906379984692,
+        "p95": 7.911031439984798
+      },
+      "semantic_evaluated_questions": 5,
+      "accuracy": 1.0,
+      "completeness": 0.9,
+      "semantic_citation_support": 1.0,
+      "citation_validation_pass_rate": 1.0
+    },
+    "extraction_sensitive": {
+      "count": 3,
+      "status_distribution": {
+        "partial": 1,
+        "abstained": 1,
+        "error": 1
+      },
+      "status_accuracy": 0.3333333333333333,
+      "latency": {
+        "count": 3,
+        "mean": 3.082875633330938,
+        "median": 3.161570700001903,
+        "p90": 3.3990668599959464,
+        "p95": 3.4287538799952015
+      },
+      "semantic_evaluated_questions": 2,
+      "accuracy": 0.0,
+      "completeness": 0.75,
+      "semantic_citation_support": 1.0,
+      "citation_validation_pass_rate": 0.5
+    },
+    "false_premise": {
+      "count": 5,
+      "status_distribution": {
+        "complete": 2,
+        "error": 1,
+        "partial": 2
+      },
+      "status_accuracy": 0.4,
+      "latency": {
+        "count": 5,
+        "mean": 3.9527636399900077,
+        "median": 3.6879965999978594,
+        "p90": 5.202070860000094,
+        "p95": 5.5430141800083215
+      },
+      "semantic_evaluated_questions": 2,
+      "accuracy": 1.0,
+      "completeness": 0.75,
+      "semantic_citation_support": 1.0,
+      "citation_validation_pass_rate": 0.8
+    },
+    "findings": {
+      "count": 5,
+      "status_distribution": {
+        "complete": 4,
+        "partial": 1
+      },
+      "status_accuracy": 0.8,
+      "latency": {
+        "count": 5,
+        "mean": 3.845880499994382,
+        "median": 3.763332200003788,
+        "p90": 5.35615695999586,
+        "p95": 5.622360679996199
+      },
+      "semantic_evaluated_questions": 3,
+      "accuracy": 0.6666666666666666,
+      "completeness": 0.8333333333333334,
+      "semantic_citation_support": 0.6666666666666666,
+      "citation_validation_pass_rate": 1.0
+    },
+    "general": {
+      "count": 4,
+      "status_distribution": {
+        "complete": 3,
+        "error": 1
+      },
+      "status_accuracy": 0.75,
+      "latency": {
+        "count": 4,
+        "mean": 8.446353625004122,
+        "median": 6.278347500003292,
+        "p90": 14.503786919999403,
+        "p95": 15.906977760000151
+      },
+      "semantic_evaluated_questions": 2,
+      "accuracy": 1.0,
+      "completeness": 1.0,
+      "semantic_citation_support": 1.0,
+      "citation_validation_pass_rate": 0.75
+    },
+    "insufficient": {
+      "count": 4,
+      "status_distribution": {
+        "needs_clarification": 1,
+        "partial": 1,
+        "abstained": 2
+      },
+      "status_accuracy": 0.75,
+      "latency": {
+        "count": 4,
+        "mean": 1.6663954250034294,
+        "median": 1.7801276500103995,
+        "p90": 2.7991999900026716,
+        "p95": 2.952062995001324
+      },
+      "semantic_evaluated_questions": 3,
+      "accuracy": 1.0,
+      "completeness": 0.8333333333333334,
+      "semantic_citation_support": 1.0,
+      "citation_validation_pass_rate": 1.0
+    },
+    "limitations": {
+      "count": 9,
+      "status_distribution": {
+        "complete": 8,
+        "partial": 1
+      },
+      "status_accuracy": 0.8888888888888888,
+      "latency": {
+        "count": 9,
+        "mean": 3.4209977222263763,
+        "median": 2.9805099999939557,
+        "p90": 5.121074080013205,
+        "p95": 5.721538440010044
+      },
+      "semantic_evaluated_questions": 5,
+      "accuracy": 1.0,
+      "completeness": 0.9,
+      "semantic_citation_support": 1.0,
+      "citation_validation_pass_rate": 1.0
+    },
+    "methodology": {
+      "count": 12,
+      "status_distribution": {
+        "complete": 8,
+        "partial": 4
+      },
+      "status_accuracy": 0.6666666666666666,
+      "latency": {
+        "count": 12,
+        "mean": 3.762685399997281,
+        "median": 3.305604899986065,
+        "p90": 4.802421800000593,
+        "p95": 6.529666049996738
+      },
+      "semantic_evaluated_questions": 9,
+      "accuracy": 1.0,
+      "completeness": 0.9444444444444444,
+      "semantic_citation_support": 1.0,
+      "citation_validation_pass_rate": 1.0
+    },
+    "multi_hop": {
+      "count": 4,
+      "status_distribution": {
+        "complete": 3,
+        "error": 1
+      },
+      "status_accuracy": 0.75,
+      "latency": {
+        "count": 4,
+        "mean": 8.187616974995763,
+        "median": 7.999636749998899,
+        "p90": 11.523805460002041,
+        "p95": 11.942708630004198
+      },
+      "semantic_evaluated_questions": 1,
+      "accuracy": 1.0,
+      "completeness": 0.5,
+      "semantic_citation_support": 1.0,
+      "citation_validation_pass_rate": 0.75
+    },
+    "paper_specific": {
+      "count": 5,
+      "status_distribution": {
+        "complete": 4,
+        "partial": 1
+      },
+      "status_accuracy": 0.8,
+      "latency": {
+        "count": 5,
+        "mean": 4.573965820006561,
+        "median": 4.434145600011107,
+        "p90": 5.80975026000524,
+        "p95": 6.213369680003961
+      },
+      "semantic_evaluated_questions": 3,
+      "accuracy": 0.8333333333333334,
+      "completeness": 0.75,
+      "semantic_citation_support": 0.8333333333333334,
+      "citation_validation_pass_rate": 1.0
+    },
+    "partial": {
+      "count": 3,
+      "status_distribution": {
+        "partial": 3
+      },
+      "status_accuracy": 1.0,
+      "latency": {
+        "count": 3,
+        "mean": 4.659127466661933,
+        "median": 4.714194500003941,
+        "p90": 5.178626900003292,
+        "p95": 5.23668095000321
+      },
+      "semantic_evaluated_questions": 2,
+      "accuracy": 0.75,
+      "completeness": 0.75,
+      "semantic_citation_support": 0.75,
+      "citation_validation_pass_rate": 1.0
+    },
+    "quantitative": {
+      "count": 11,
+      "status_distribution": {
+        "complete": 10,
+        "partial": 1
+      },
+      "status_accuracy": 0.9090909090909091,
+      "latency": {
+        "count": 11,
+        "mean": 2.9840891818246083,
+        "median": 2.6724396999925375,
+        "p90": 3.767095999995945,
+        "p95": 4.084627850010293
+      },
+      "semantic_evaluated_questions": 6,
+      "accuracy": 1.0,
+      "completeness": 1.0,
+      "semantic_citation_support": 1.0,
+      "citation_validation_pass_rate": 1.0
+    },
+    "scope_restriction": {
+      "count": 2,
+      "status_distribution": {
+        "complete": 1,
+        "partial": 1
+      },
+      "status_accuracy": 0.5,
+      "latency": {
+        "count": 2,
+        "mean": 5.155766050011152,
+        "median": 5.155766050011152,
+        "p90": 6.441266170010204,
+        "p95": 6.601953685010084
+      },
+      "semantic_evaluated_questions": 1,
+      "accuracy": 1.0,
+      "completeness": 1.0,
+      "semantic_citation_support": 1.0,
+      "citation_validation_pass_rate": 1.0
+    },
+    "single_paper_factual": {
+      "count": 8,
+      "status_distribution": {
+        "complete": 8
+      },
+      "status_accuracy": 1.0,
+      "latency": {
+        "count": 8,
+        "mean": 2.571636225002294,
+        "median": 2.466474750021007,
+        "p90": 3.204175249999389,
+        "p95": 3.5381415750045555
+      },
+      "semantic_evaluated_questions": 6,
+      "accuracy": 1.0,
+      "completeness": 1.0,
+      "semantic_citation_support": 1.0,
+      "citation_validation_pass_rate": 1.0
+    },
+    "unanswerable": {
+      "count": 3,
+      "status_distribution": {
+        "error": 1,
+        "abstained": 2
+      },
+      "status_accuracy": 0.6666666666666666,
+      "latency": {
+        "count": 3,
+        "mean": 2.452343499986455,
+        "median": 2.4787958999804687,
+        "p90": 2.791401419992326,
+        "p95": 2.830477109993808
+      },
+      "semantic_evaluated_questions": 2,
+      "accuracy": null,
+      "completeness": 1.0,
+      "semantic_citation_support": null,
+      "citation_validation_pass_rate": 0.0
+    }
+  },
+  "by_difficulty": {
+    "difficult": {
+      "count": 25,
+      "status_distribution": {
+        "error": 3,
+        "complete": 16,
+        "partial": 6
+      },
+      "status_accuracy": 0.68,
+      "latency": {
+        "count": 25,
+        "mean": 5.818887368001742,
+        "median": 4.82942880000337,
+        "p90": 11.065771259996112,
+        "p95": 11.938927939999848
+      },
+      "semantic_evaluated_questions": 11,
+      "accuracy": 1.0,
+      "completeness": 0.8181818181818182,
+      "semantic_citation_support": 1.0,
+      "citation_validation_pass_rate": 0.88
+    },
+    "easy": {
+      "count": 21,
+      "status_distribution": {
+        "partial": 2,
+        "complete": 13,
+        "error": 2,
+        "needs_clarification": 2,
+        "abstained": 2
+      },
+      "status_accuracy": 0.8095238095238095,
+      "latency": {
+        "count": 21,
+        "mean": 3.0459201999973238,
+        "median": 2.7446018000191543,
+        "p90": 4.839584700006526,
+        "p95": 6.826503499993123
+      },
+      "semantic_evaluated_questions": 14,
+      "accuracy": 1.0,
+      "completeness": 1.0,
+      "semantic_citation_support": 1.0,
+      "citation_validation_pass_rate": 0.8823529411764706
+    },
+    "intermediate": {
+      "count": 59,
+      "status_distribution": {
+        "complete": 35,
+        "error": 3,
+        "partial": 17,
+        "needs_clarification": 1,
+        "abstained": 3
+      },
+      "status_accuracy": 0.711864406779661,
+      "latency": {
+        "count": 59,
+        "mean": 4.227271123728577,
+        "median": 3.6808697000087705,
+        "p90": 6.7649942200048825,
+        "p95": 8.155477260000769
+      },
+      "semantic_evaluated_questions": 35,
+      "accuracy": 0.90625,
+      "completeness": 0.8928571428571429,
+      "semantic_citation_support": 0.9375,
+      "citation_validation_pass_rate": 0.9454545454545454
+    }
+  },
+  "mode": "live",
+  "planned_questions": 105,
+  "run_complete": true,
+  "dataset_sha256": "1f09eaa462bc7662a1dba9049e8fa1a0b50833dc1b23a86cb7caae12e3e0b304",
+  "rubrics_human_verified": false,
+  "reserved_api_requests": {
+    "generation": 117,
+    "judge": 97
+  },
+  "request_accounting_complete": true
+}

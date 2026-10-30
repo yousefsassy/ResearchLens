@@ -1,24 +1,14 @@
-# Python environments
-.venv/
-.venv-incomplete/
-
-# Python generated files
-__pycache__/
-*.py[cod]
-
-# Secrets
 .env
-.env.*
-!.env.example
-
-# Generated data (reproducible)
-data/processed/
-
-# Local settings
-.vscode/
-.DS_Store
-# Member 2 generated retrieval artifacts
-data/indexes/
-eval/results/
+.venv/
+venv/
+__pycache__/
+*.pyc
 .pytest_cache/
 .cache/
+tmp/
+data/indexes/
+data/processed/
+
+eval/results/*
+!eval/results/final/
+!eval/results/final/**
