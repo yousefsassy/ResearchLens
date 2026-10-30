@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 from .common import corpus_fingerprint
 from .config import RetrievalConfig, prepare_model_cache
+from src.profiling import measure, timed
 
 
 def normalize(vectors: np.ndarray) -> np.ndarray:
@@ -26,11 +27,12 @@ class BGEEncoder:
     @property
     def model(self):
         if self._model is None:
-            prepare_model_cache(self.config)
-            from sentence_transformers import SentenceTransformer
-            self._model = SentenceTransformer(self.config.embedding_model,
-                revision=self.config.embedding_revision, device=self.config.device,
-                cache_folder=str(self.config.model_cache_dir))
+            with measure("bge_model_loading"):
+                prepare_model_cache(self.config)
+                from sentence_transformers import SentenceTransformer
+                self._model = SentenceTransformer(self.config.embedding_model,
+                    revision=self.config.embedding_revision, device=self.config.device,
+                    cache_folder=str(self.config.model_cache_dir))
             self._model.max_seq_length = self.config.max_seq_length
         return self._model
 
@@ -42,6 +44,7 @@ class BGEEncoder:
         return normalize(self.model.encode(texts, batch_size=self.config.embedding_batch_size,
             convert_to_numpy=True, normalize_embeddings=True, show_progress_bar=False))
 
+    @timed("query_embedding_including_model_load")
     def encode_query(self, question: str) -> np.ndarray:
         return self.encode_documents([self.config.query_instruction + question])[0]
 
@@ -54,6 +57,7 @@ def index_signature(chunks: list[dict], config: RetrievalConfig) -> dict:
             "normalized": True, "dtype": "float32"}
 
 
+@timed("vector_index_loading")
 def load_index(chunks: list[dict], config: RetrievalConfig) -> tuple[np.ndarray, dict]:
     directory = Path(config.index_dir)
     metadata = json.loads((directory / "index_metadata.json").read_text(encoding="utf-8"))

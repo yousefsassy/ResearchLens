@@ -2,18 +2,20 @@
 import re
 from rank_bm25 import BM25Okapi
 from .common import candidate_indices, make_result, rank_results, validate_query
-
+from src.profiling import timed
 
 def tokenize(text: str) -> list[str]:
     return re.findall(r"[^\W_]+", text.casefold(), flags=re.UNICODE)
 
 
 class BM25Search:
+    @timed("bm25_initialization")
     def __init__(self, chunks: list[dict]):
         self.chunks = chunks
         self.tokens = [tokenize(chunk["text"]) for chunk in chunks]
         self.index = BM25Okapi(self.tokens) if any(self.tokens) else None
 
+    @timed("bm25_search")
     def search(self, question: str, top_k: int = 5, paper_ids=None,
                exclude_flagged: bool = False) -> list[dict]:
         question = validate_query(question, top_k)

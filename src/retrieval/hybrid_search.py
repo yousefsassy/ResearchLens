@@ -1,7 +1,9 @@
 """Reciprocal Rank Fusion: scores are combined by rank, never raw scale."""
 from .common import rank_results, validate_query
+from src.profiling import timed
 
 
+@timed("rrf_fusion")
 def reciprocal_rank_fusion(rankings: dict[str, list[dict]], constant: int = 60,
                            top_k: int = 5) -> list[dict]:
     if type(constant) is not int or constant < 1:

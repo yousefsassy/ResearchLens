@@ -55,9 +55,9 @@ def interpret(question: str, paper_ids, answer_type: str, catalog: dict[str, Pap
         answer_type == "auto" and (paper_comparison or len(explicit or named) == 2)) else "qa"
     scope = named if explicit is None else explicit
     aspects = [name for name, pattern in {
-        "methods": r"\b(method\w*|approach\w*|mechanism\w*)\b",
-        "findings": r"\b(finding\w*|result\w*|experiment\w*|performance)\b",
-        "limitations": r"\b(limit\w*|weakness\w*|assumption\w*)\b",
+        "methods": r"\b(method\w*|methodolog\w*|approach\w*|mechanism\w*|how .{0,80}?works?|procedure\w*|unit of evaluation|scor\w*|metric\w*|measure\w*|detect\w*|estimati\w*|aggregation)\b",
+        "findings": r"\b(finding\w*|result\w*|experiment\w*|performance|outcome\w*|effect\w*)\b",
+        "limitations": r"\b(limit\w*|weakness\w*|assumption\w*|constraint\w*|applicability|trade.off\w*|failure mode\w*)\b",
     }.items() if re.search(pattern, question, re.I)] or ["methods", "findings", "limitations"]
     result = Interpretation(kind, scope, aspects)
 

@@ -23,3 +23,28 @@ def test_invalid_queries(chunks, encoder, question):
 def test_alignment_error(chunks, encoder):
     with pytest.raises(ValueError, match="row count"):
         VectorSearch(chunks, np.ones((3, 2)), encoder)
+
+
+def test_query_embeddings_reused_across_scopes_and_bounded(chunks):
+    class Encoder:
+        def __init__(self):
+            self.calls = []
+
+        def encode_query(self, question):
+            self.calls.append(question)
+            return np.array([1, 0])
+
+    encoder = Encoder()
+    search = VectorSearch(chunks, np.ones((4, 2)), encoder)
+    search.search("shared query", paper_ids=["P001"])
+    search.search("shared query", paper_ids=["P002"])
+    assert encoder.calls == ["shared query"]
+    for index in range(33):
+        search.search(f"query {index}")
+    assert len(search._query_cache) == 32
+    search.search("shared query")
+    assert encoder.calls.count("shared query") == 2
+    replacement = Encoder()
+    search.encoder = replacement
+    search.search("shared query")
+    assert replacement.calls == ["shared query"]

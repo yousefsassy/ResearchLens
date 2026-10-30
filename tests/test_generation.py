@@ -9,7 +9,7 @@ import httpx
 from pydantic import ValidationError
 
 from src.generation import GenerationConfig, ResearchGenerator
-from src.generation.client import OllamaClient
+from src.generation.client import OpenAIClient
 from src.generation.citations import validate_and_render
 from src.generation.evidence import select_evidence
 from src.generation.papers import interpret, load_catalog
@@ -74,8 +74,8 @@ def test_config_env_override_and_secret_redaction(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "environment-secret")
     monkeypatch.setenv("OLLAMA_MODEL", "qwen3:8b")
     config = GenerationConfig.from_env(env)
-    assert config.model == "qwen3:8b"
-    assert config.max_tokens == 1234
+    assert config.model == "gpt-5.4-nano"
+    assert config.max_tokens == 2048
     assert "secret" not in repr(config)
     assert "api_key" not in config.model_dump()
     with pytest.raises(ValidationError):
@@ -126,15 +126,16 @@ def test_adapter_filters_deduplicates_and_preserves_metadata(catalog):
 
 
 def test_balanced_comparison_and_aspect_queries(catalog):
-    backend = Retriever([passage("P002", i, "A" * 100 + str(i)) for i in range(1, 9)] +
-                        [passage("P003", i, "B" * 100 + str(i)) for i in range(1, 9)])
+    backend = Retriever([passage("P002", i, "The method uses repeated samples to estimate consistency.") for i in range(1, 9)] +
+                        [passage("P003", i, "The method evaluates independent statements using retrieved documents.") for i in range(1, 9)])
     interpretation = interpret("Compare P002 and P003", None, "auto", catalog)
     result = select_evidence(backend, "Compare P002 and P003", interpretation, catalog, 205)
     assert [r.paper_id for r in result.passages] == ["P002", "P003"]
-    assert len(backend.calls) == 6
+    assert len(backend.calls) == 8
     assert all(len(c["paper_ids"]) == 1 for c in backend.calls)
     assert sum(len(r.text) for r in result.passages) <= 205
-    assert result.gaps
+    assert any("limitations" in gap for gap in result.gaps)
+    assert not any(": methods" in gap for gap in result.gaps)
     assert interpret("Compare P002 and P003 methodologies", None, "auto", catalog).aspects == ["methods"]
 
 
@@ -200,7 +201,8 @@ def test_generator_rejects_unknown_sources_without_leaking_draft():
     result = ResearchGenerator(Retriever([passage()]), client).answer("SelfCheckGPT")
     assert result.status == "error" and result.error.code == "invalid_model_output"
     assert not result.answer and not result.claims and result.evidence
-    assert result.metrics.attempts == 1
+    assert result.metrics.attempts == 2
+    assert len(client.messages) == 2
 
 
 @pytest.mark.parametrize("mutation", ["unknown_source", "fabricated_quote", "blank_quote", "uncited", "inline_marker", "synthesis"])
@@ -233,12 +235,13 @@ def test_comparison_synthesis_requires_both_sources_and_normalizes_whitespace():
 @pytest.mark.parametrize("text,altered_quote", [
     ("Variants include _n_ -gram, NLI, and LLM prompting.", "_n_-gram, NLI"),
     ("It can outperform greybox methods, and serves as a baseline.", "outperform greybox methods."),
+    ("SelfCheckGPT compares stochastic samples.", "selfcheckgpt compares stochastic samples"),
 ])
 def test_rejects_punctuation_and_markdown_changes_observed_in_local_smoke(text, altered_quote):
     output = Client().result
     output["claims"][0]["citations"][0]["quote"] = altered_quote
     source = Evidence(**passage(text=text), source_id="S1")
-    with pytest.raises(ValueError, match="quote absent"):
+    with pytest.raises(ValueError, match="quote not found"):
         validate_and_render(ModelAnswer.model_validate(output), [source], "qa", ["P002"])
 
 
@@ -255,26 +258,27 @@ def test_cli_requires_live_flag():
     assert result.returncode == 2 and "--live" in result.stderr
 
 
-def test_complete_orchestration_through_mocked_ollama_transport():
+def test_complete_orchestration_through_mocked_openai_transport():
+    from openai import OpenAI
     requests = []
     model = GenerationConfig().model
 
     def respond(request):
         requests.append(request)
-        assert request.url.host == "127.0.0.1"
-        assert "authorization" not in request.headers
-        if request.method == "GET":
-            return httpx.Response(200, json={"models": [{"name": model, "details": {"format": "gguf"}}]})
         body = json.loads(request.content)
-        context = json.loads(body["messages"][1]["content"])["evidence"]
+        context = json.loads(body["input"])["evidence"]
         assert context[0]["chunk_id"] == "P002-p001-c001"
-        return httpx.Response(200, json={"model": model, "done": True, "done_reason": "stop",
-            "message": {"content": json.dumps(Client().result)}, "prompt_eval_count": 10, "eval_count": 10})
+        return httpx.Response(200, json={"id": "resp_test", "object": "response", "created_at": 0,
+            "model": model, "status": "completed", "output": [{"type": "message", "id": "msg_test",
+            "role": "assistant", "status": "completed", "content": [{"type": "output_text",
+            "text": json.dumps(Client().result), "annotations": []}]}],
+            "usage": {"input_tokens": 10, "output_tokens": 10, "total_tokens": 20,
+                      "output_tokens_details": {"reasoning_tokens": 0}}})
 
     config = GenerationConfig()
     with httpx.Client(transport=httpx.MockTransport(respond)) as http:
-        client = OllamaClient(config, http=http)
+        client = OpenAIClient(config, client=OpenAI(api_key="mock-key", http_client=http, max_retries=0))
         result = ResearchGenerator(Retriever([passage()]), client, config).answer("SelfCheckGPT")
     assert result.status == "complete" and result.citations[0].chunk_id == "P002-p001-c001"
-    assert result.metrics.prompt_tokens == 10 and result.metrics.cost_usd == 0
-    assert [request.method for request in requests] == ["GET", "POST"]
+    assert result.metrics.prompt_tokens == 10
+    assert [request.method for request in requests] == ["POST"]

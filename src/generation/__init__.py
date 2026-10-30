@@ -1,7 +1,7 @@
 """Local generation; importing this package does not initialize retrieval."""
-from .client import OllamaClient
+from .client import OpenAIClient
 from .config import GenerationConfig
 from .generator import ResearchGenerator
 from .schemas import GenerationResponse
 
-__all__ = ["ResearchGenerator", "GenerationConfig", "GenerationResponse", "OllamaClient"]
+__all__ = ["ResearchGenerator", "GenerationConfig", "GenerationResponse", "OpenAIClient"]
