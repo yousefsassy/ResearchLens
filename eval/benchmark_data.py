@@ -10,7 +10,7 @@ from eval.generation_eval import EvalCase
 from src.generation.schemas import StrictModel
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_DATASET = ROOT / "eval/benchmark.v1.jsonl"
+DEFAULT_DATASET = ROOT / "eval/benchmark.v2.jsonl"
 DEFAULT_CORPUS = ROOT / "data/processed/chunks.jsonl"
 
 

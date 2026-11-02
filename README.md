@@ -65,7 +65,7 @@ The command outputs a structured JSON answer with citation details. **Live gener
 
 ## Corpus
 
-The current corpus contains **5 papers, 156 PDF pages, and 638 text chunks**:
+The current corpus contains **8 papers, 250 PDF pages, and 1,001 text chunks**:
 
 | ID | Paper |
 |---|---|
@@ -74,12 +74,15 @@ The current corpus contains **5 papers, 156 PDF pages, and 638 text chunks**:
 | P003 | FActScore: Fine-grained Atomic Evaluation of Factual Precision in Long Form Text Generation |
 | P004 | TruthfulQA: Measuring How Models Mimic Human Falsehoods |
 | P005 | Retrieval Augmentation Reduces Hallucination in Conversation |
+| P006 | Survey of Hallucination in Natural Language Generation |
+| P007 | HaluEval: A Large-Scale Hallucination Evaluation Benchmark for Large Language Models |
+| P008 | Chain-of-Verification Reduces Hallucination in Large Language Models |
 
 ## Results
 
 ### Retrieval — preliminary pilot
 
-A **20-question draft pilot** compared four retrieval methods. These relevance labels were **not human-approved**; results are exploratory, not a validated final retrieval benchmark.
+A **20-question draft pilot** compared four retrieval methods. These relevance labels were **not human-approved**; results are exploratory, not a validated final retrieval benchmark. The pilot predates the P006-P008 corpus expansion and must be rerun for current numbers.
 
 | Retrieval method | Recall@5 | MRR@10 | Mean search time |
 |---|---:|---:|---:|
@@ -90,7 +93,9 @@ A **20-question draft pilot** compared four retrieval methods. These relevance l
 
 Source: `docs/retrieval_results.md`. These timings exclude initialization.
 
-### Generation — full 105-question live benchmark
+### Generation — historical 105-question live benchmark
+
+This table is the previous five-paper run. The current `eval/benchmark.v2.jsonl` contains **117 questions** after adding P006-P008; a new live run is required for updated numbers.
 
 One full run of **105 questions** using `gpt-5.4-nano` for generation and an optional `gpt-5.4-mini` LLM judge produced:
 
@@ -126,10 +131,10 @@ Run the automated tests (no live generation calls):
 Run the full live benchmark with semantic judging (requires `eval/full_benchmark.py` in your current working tree):
 
 ```powershell
-.\.venv\Scripts\python.exe -u eval/full_benchmark.py run --live --max-requests 210 --judge-model gpt-5.4-mini --judge-budget 105
+.\.venv\Scripts\python.exe -u eval/full_benchmark.py run --live --max-requests 240 --judge-model gpt-5.4-mini --judge-budget 120
 ```
 
-This command may make up to **210 generation requests** and **105 judge requests**. Saved reports are written under `eval/results/full-<timestamp>/`. Do not run the live benchmark merely to view previous results.
+This command may make up to **240 generation requests** and **120 judge requests**. Saved reports are written under `eval/results/full-<timestamp>/`. Do not run the live benchmark merely to view previous results.
 
 ## Repository
 
@@ -150,4 +155,4 @@ Detailed system design: [`docs/retrieval_design.md`](docs/retrieval_design.md) �
 
 ## Limitations
 
-ResearchLens currently covers only five papers. PDF extraction can be unreliable for equations and tables; multi-paper comparisons sometimes omit requested details; and generated responses can fail strict citation validation. The LLM judge still requires reliability improvements and human-reviewed evaluation labels. The application is currently a **CLI prototype**, not a deployed web service.
+ResearchLens currently covers eight papers. PDF extraction can be unreliable for equations and tables; multi-paper comparisons sometimes omit requested details; and generated responses can fail strict citation validation. The LLM judge still requires reliability improvements and human-reviewed evaluation labels. The application is currently a **CLI prototype**, not a deployed web service.

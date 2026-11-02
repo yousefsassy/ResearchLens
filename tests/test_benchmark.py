@@ -59,7 +59,8 @@ def test_cli_debug_enables_diagnostics_and_requires_live(capsys, monkeypatch):
 
 
 def test_benchmark_schema_references_diversity_and_preserved_questions(cases):
-    assert len(cases) >= 100
+    assert len(cases) == 117
+    assert DEFAULT_DATASET.name == "benchmark.v2.jsonl"
     assert len({c.question_id for c in cases}) == len(cases)
     assert len({c.question.casefold() for c in cases}) == len(cases)
     assert {"definitions", "methodology", "experimental_setup", "findings", "limitations", "single_paper_factual",
@@ -68,6 +69,8 @@ def test_benchmark_schema_references_diversity_and_preserved_questions(cases):
     assert sum(len(c.reference_sources) > 1 for c in cases) >= 10
     for paper in ("P001", "P002", "P003", "P004", "P005"):
         assert sum(paper in (c.paper_ids or []) for c in cases) >= 12
+    for paper in ("P006", "P007", "P008"):
+        assert sum(paper in (c.paper_ids or []) for c in cases) >= 4
     original = [json.loads(line) for line in Path("eval/generation_questions.draft.jsonl").read_text(encoding="utf-8").splitlines()]
     assert [(c.question_id, c.question) for c in cases[:20]] == [(c["question_id"], c["question"]) for c in original]
     assert not any(c.human_verified for c in cases)

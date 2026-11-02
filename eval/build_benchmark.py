@@ -1,4 +1,8 @@
-"""Rebuild the versioned benchmark from curated questions and indexed source text.
+"""Legacy builder for the original five-paper v1 benchmark.
+
+The active benchmark is `eval/benchmark.v2.jsonl`, produced by
+`eval/expand_benchmark_v2.py` from v1 plus the P006-P008 cases. This script is
+kept for reproducing the original v1 dataset, not for regenerating v2.
 
 References are machine-checked against the corpus; rubrics are not human verified.
 Existing draft questions remain unchanged in their original file.
