@@ -135,7 +135,7 @@ One full run of **105 questions** using `gpt-5.4-nano` for generation and an opt
 | Judge coverage | 60/105 (57.1%); 37 judge-validation errors |
 | Mean / median / p95 latency | 4.37 s / 3.68 s / 9.63 s |
 | Generation / judge API requests | 117 / 97 |
-| Automated tests | 198 passed in the historical run; current integration suite: 360 |
+| Automated tests | 198 passed in the historical run; current integration suite: 362 |
 
 **Evaluation limitations:** The benchmark labels and rubrics have **not been human-verified**. Semantic scores cover only the successfully judged subset and **must not be reported as accuracy over all 105 questions**. Citation validation checks source IDs, quotations, and structure; it is not the same as semantic citation support. Estimated API cost was not calculated.
 

@@ -57,6 +57,8 @@ def test_general_qa_uses_http_and_renders_real_citation_fields(tmp_path):
         assert any("PDF p. 1" in e.value for e in at.caption)
         assert any("Retrieved evidence" in e.label for e in at.expander)
         assert any("Complete answer" in e.value for e in at.success)
+        assert all(e.label != "Sample API request" for e in at.expander)
+        assert not any("curl " in e.value for e in at.code)
 
 
 def test_ui_forwards_all_filters_and_comparison_selection(tmp_path):
@@ -102,11 +104,12 @@ def test_invalid_input_is_caught_before_http_and_clears_old_answer(tmp_path):
         assert any("Invalid input" in e.value for e in at.error)
 
 
-def test_feedback_is_bound_to_answer_and_sent_once(tmp_path):
+@pytest.mark.parametrize("rating,label",[(1,"up"),(0,"down")])
+def test_feedback_is_bound_to_answer_and_sent_once(tmp_path,rating,label):
     with ui(tmp_path) as (at,gen,service):
         ask(at)
         answer_key=at.session_state["last_result_key"]
-        at.session_state[f"rating-{answer_key}"]=1
+        at.session_state[f"rating-{answer_key}"]=rating
         widget(at.text_input,"Optional comment").set_value("Clear citation").run()
         widget(at.button,"Send feedback").click().run()
         assert not at.exception
@@ -115,13 +118,19 @@ def test_feedback_is_bound_to_answer_and_sent_once(tmp_path):
         assert len(lines)==1
         import json
         record=json.loads(lines[0])
-        assert record["submission_id"]==answer_key and record["rating"]=="up"
+        assert record["submission_id"]==answer_key and record["rating"]==label
         assert record["request_id"]==answer_key  # Fixture has no provider request ID.
         at.run()
         assert len(service.feedback.path.read_text().splitlines())==1
         ask(at)
         assert at.session_state["last_result_key"]!=answer_key
         assert not widget(at.button,"Send feedback").disabled
+
+
+def test_researcher_ui_has_no_debug_api_example(tmp_path):
+    with ui(tmp_path) as (at,_,_):
+        assert not any("API request" in e.label for e in at.expander)
+        assert not any("curl " in e.value for e in at.code)
 
 
 @pytest.mark.parametrize("mode",["unavailable","malformed"])

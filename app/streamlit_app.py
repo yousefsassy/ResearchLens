@@ -230,15 +230,6 @@ def main() -> None:
     if result is not None:
         render_answer(result, client, st.session_state["last_result_key"])
 
-    with st.expander("Sample API request"):
-        st.code(
-            f"""curl -s -X POST "{api_url()}/ask" \\
-  -H "Content-Type: application/json" \\
-  -d '{{"question": "How does SelfCheckGPT detect hallucinations?", "paper_ids": ["P002"]}}'""",
-            language="bash",
-        )
-        st.caption("The OpenAI key is only used by the backend; it is never sent to the browser.")
-
 
 if __name__ == "__main__":
     main()

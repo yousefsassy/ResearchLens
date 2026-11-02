@@ -137,6 +137,9 @@ Feedback controls retain ratings/comments and are tied to a unique UI answer ID
 and the provider request ID when present. Successful submissions disable the send
 button. The same `submission_id` is ignored on repeat, including after store
 recreation. This is a single-worker JSONL store, not a multi-worker database.
+On ephemeral cloud filesystems, feedback may disappear after restarts or
+redeployment. Persist it on a backend block volume and back it up for the demo;
+no new database is required.
 Feedback comments can contain user-entered information; treat the ignored
 `data/feedback/` directory appropriately and do not commit it.
 
@@ -192,3 +195,11 @@ retrieval used about 617 MiB peak RSS in review; this is not a remote capacity
 guarantee. Existing RAM-backed caches must not be relied on in deployment.
 The prototype has no authentication layer; do not expose the professor's funded
 generation endpoint publicly without an appropriate access policy.
+
+The researcher UI no longer displays the development curl/API example; developer
+request examples remain in this document. For the current Streamlit Community
+Cloud + Oracle ARM assessment, artifact transfer checks and manual setup sequence,
+see [deployment readiness](deployment_readiness.md). No deployment configuration
+or cloud resource was created as part of that assessment.
+Final cleanup verification passed 362 offline tests, including both feedback
+ratings and the absence of the debugging example; no paid inference was needed.
