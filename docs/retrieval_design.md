@@ -85,7 +85,7 @@ retriever.search(
     rerank=False,
     year=2023,
     author="Manakul",
-    section="Methods",
+    section="SelfCheckGPT",
 )
 ```
 

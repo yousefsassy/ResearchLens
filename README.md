@@ -58,7 +58,7 @@ Optional metadata filters restrict retrieval before ranking. `--author` and `--s
 The same filters work with the retrieval-only CLI:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/test_retrieval.py --question "How does SelfCheckGPT detect hallucinations?" --mode hybrid --no-rerank --year 2023 --author Manakul --section Methods
+.\.venv\Scripts\python.exe scripts/test_retrieval.py --question "How does SelfCheckGPT detect hallucinations?" --mode hybrid --no-rerank --year 2023 --author Manakul --section SelfCheckGPT
 ```
 
 The command outputs a structured JSON answer with citation details. **Live generation uses the OpenAI API and may incur charges.** There is no deployed web interface in this repository.
