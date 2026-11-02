@@ -71,7 +71,7 @@ class ResearchService:
                 self._owner = self._client_factory(self._config)
                 if self._owner.client is None:
                     self._startup_error = ErrorInfo(code="missing_api_key",
-                        message="Configure OPENAI_API_KEY on the FastAPI server.")
+                        message="Configure OPENAI_API_KEY on the application server.")
             except Exception:
                 self._startup_error = ErrorInfo(code="service_unavailable",
                     message="Generation could not be initialized. Check the server configuration.")

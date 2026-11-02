@@ -8,6 +8,7 @@ __pycache__/
 .cache/
 tmp/
 .streamlit/secrets.toml
+**/.streamlit/secrets.toml
 data/indexes/
 data/processed/
 data/feedback/

@@ -1,5 +1,8 @@
 # Oracle ARM + Streamlit deployment runbook
 
+This remains the alternative two-service hosting mode. For standalone Community
+Cloud without an Oracle account, see [the standalone guide](streamlit_cloud.md).
+
 Prepared on `feature/deployment`, 2 November 2026. **No VM, DNS record, certificate,
 public endpoint or cloud deployment has been created.** All values in angle brackets
 must be supplied by the administrator. Commands below are manual future steps.

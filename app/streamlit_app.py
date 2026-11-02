@@ -142,9 +142,12 @@ def render_answer(result, client, response_key) -> None:
         st.success("Feedback saved. Thank you.")
 
 
-def main() -> None:
+def main(client_factory=None, *, require_demo_password=False) -> None:
     st.title("ResearchLens")
     password = os.environ.get("RESEARCHLENS_DEMO_PASSWORD", "")
+    if require_demo_password and len(password) < 12:
+        st.error("Configure a private demonstration passcode of at least 12 characters in server secrets.")
+        st.stop()
     if password and not st.session_state.get("demo_authorized", False):
         st.info("Enter the demonstration passcode supplied by the project team.")
         supplied = st.text_input("Demo passcode", type="password", key="demo_passcode")
@@ -161,7 +164,8 @@ def main() -> None:
         "Each question is independent; there is no conversation memory."
     )
     try:
-        client = get_client(api_url(), os.environ.get("RESEARCHLENS_API_TOKEN", ""))
+        client = (client_factory() if client_factory else
+                  get_client(api_url(), os.environ.get("RESEARCHLENS_API_TOKEN", "")))
         health = client.health()
         papers = client.papers()
     except APIClientError as error:

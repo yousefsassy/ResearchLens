@@ -80,6 +80,16 @@ class DemoGuard:
         expected = "Bearer " + self._token
         if not hmac.compare_digest((authorization or "").encode(), expected.encode()):
             raise HTTPException(401, "API authentication required.", headers={"WWW-Authenticate": "Bearer"})
+        self.reserve(endpoint)
+
+    def reserve(self, endpoint):
+        """Reserve traffic after authorization by a trusted in-process adapter.
+
+        HTTP callers must use admit(), which checks the shared API token first.
+        """
+        if self.path is None or any(type(n) is not int or n < 1 for n in
+                (self.maximum, *self.limits.values())):
+            raise HTTPException(503, "Demo protection is not configured.")
         with self._lock:
             now = self.clock()
             events = self._events[endpoint]
