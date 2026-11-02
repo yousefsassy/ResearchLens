@@ -209,7 +209,7 @@ def build():
     )
     add(
         "GEN-117",
-        "What FActScore improvement did factor+revise CoVe achieve on longform generation?",
+        "What factual-precision score improvement did factor+revise CoVe achieve on longform generation?",
         "quantitative", "intermediate", "P008",
         [("P008-p008-c002", "63.7 (factored) _→_ 71.4 (factor+revise)")],
         [
