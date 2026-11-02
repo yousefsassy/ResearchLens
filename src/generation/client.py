@@ -1,12 +1,14 @@
 
 """OpenAI Responses API client for ResearchLens."""
 import json
+import os
 import time
 
+from dotenv import load_dotenv
 from openai import OpenAI, OpenAIError
 from pydantic import ValidationError
 
-from .config import GenerationConfig
+from .config import GenerationConfig, PROJECT_ROOT
 from .schemas import ErrorInfo, Metrics, ModelAnswer
 
 
@@ -24,14 +26,18 @@ class GenerationFailure(Exception):
 class OpenAIClient:
     def __init__(self, config: GenerationConfig, client=None):
         self.config = config
-        self.client = client or OpenAI(
-            timeout=config.request_timeout,
-            max_retries=0,
-        )
+        if client is None:
+            # Library callers and every CLI use the same root .env. Existing
+            # process settings take precedence; injected clients remain inert.
+            load_dotenv(PROJECT_ROOT / ".env", override=False)
+        self.client = client
+        if self.client is None and os.environ.get("OPENAI_API_KEY", "").strip():
+            self.client = OpenAI(timeout=config.request_timeout, max_retries=0)
         self.attempts_used = 0
 
     def close(self):
-        self.client.close()
+        if self.client is not None:
+            self.client.close()
 
     def complete(self, messages: list[dict]):
         return self._complete(messages, self.config.max_attempts)
@@ -45,6 +51,13 @@ class OpenAIClient:
             model=self.config.model,
             provider="openai",
         )
+
+        if self.client is None:
+            raise GenerationFailure(
+                "missing_api_key",
+                "Set OPENAI_API_KEY in the project-root .env or process environment.",
+                metrics=metrics,
+            )
 
         if self.attempts_used >= self.config.attempt_limit:
             raise GenerationFailure(
@@ -138,10 +151,15 @@ class OpenAIClient:
                     metrics=metrics,
                 ) from None
 
-            except OpenAIError:
+            except OpenAIError as error:
                 metrics.accounting_complete = False
+                status = getattr(error, "status_code", None)
+                retryable = status is None or status == 429 or status >= 500
+                if getattr(error, "code", None) == "insufficient_quota":
+                    retryable = False
                 if (
-                    attempt + 1 < max_attempts
+                    retryable
+                    and attempt + 1 < max_attempts
                     and self.attempts_used < self.config.attempt_limit
                 ):
                     time.sleep(1)
@@ -151,6 +169,6 @@ class OpenAIClient:
                 raise GenerationFailure(
                     "openai_api_error",
                     "OpenAI request failed. Check the API key, model access, and quota.",
-                    retryable=True,
+                    retryable=retryable,
                     metrics=metrics,
                 ) from None

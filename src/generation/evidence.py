@@ -141,9 +141,16 @@ def select_evidence(retriever, question: str, interpretation: Interpretation,
                     preceding[key] = item
         neighbors = {}
         if preceding:
+            from src.retrieval.common import candidate_indices
+
             for row in getattr(retriever, "chunks", []):
                 anchor = preceding.get(row.get("chunk_id"))
                 if anchor and row.get("paper_id") == anchor.paper_id and row.get("pdf_page") == anchor.pdf_page:
+                    # Recovering adjacent text must not bypass the same optional
+                    # filters applied by retrieval, especially section scope.
+                    if not candidate_indices([row], [anchor.paper_id], True,
+                                             year=year, author=author, section=section):
+                        continue
                     neighbor = _evidence(row, catalog)
                     if neighbor is not None and neighbor.text.strip():
                         neighbors[anchor.chunk_id] = neighbor
@@ -227,6 +234,10 @@ def select_evidence(retriever, question: str, interpretation: Interpretation,
                     gaps.append(f"Adequate candidate evidence for {paper_id}: {aspect} was not selected within the evidence budget.")
                 else:
                     gaps.append(f"No adequate supporting evidence retrieved for {paper_id}: {aspect}.")
+
+    if not selected and any(failed for _, failed in cache.values()):
+        # Service/index failure is not evidence that the papers lack an answer.
+        raise RuntimeError("Retrieval failed before usable evidence could be selected.")
 
     return EvidenceSelection(
         passages=[item.model_copy(update={"source_id": f"S{i}"})

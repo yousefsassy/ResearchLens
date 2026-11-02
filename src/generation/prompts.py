@@ -8,7 +8,7 @@ from .papers import Interpretation
 from .schemas import Evidence, ModelAnswer
 
 
-PROMPT_VERSION = "1.7"
+PROMPT_VERSION = "1.8"
 
 
 SYSTEM_PROMPT = """You are ResearchLens, an academic research assistant.
@@ -53,6 +53,7 @@ For each citation:
 - Never add, remove, or substitute words or punctuation.
 - Prefer complete supporting statements; never stop mid-word or omit the qualifier, value, or relationship that establishes support.
 - If a quote crosses a line break, copy it exactly as shown in the evidence. Prefer quotations that do not cross line breaks.
+- verbatim_quote_candidates contains excerpts copied by the application from each source. Prefer an adequate candidate from the matching source, without changing its text. A candidate is not automatically relevant or sufficient support.
 
 CITATION VALIDITY
 
@@ -323,6 +324,7 @@ def build_messages(
             p.model_dump(mode="json", exclude_none=True)
             for p in evidence
         ],
+        "verbatim_quote_candidates": quote_candidates(evidence),
         "output_schema": ModelAnswer.model_json_schema(),
     }
 
@@ -339,6 +341,15 @@ def build_messages(
             ),
         },
     ]
+
+
+def quote_candidates(evidence: list[Evidence]) -> dict[str, list[str]]:
+    """Offer literal spans, without normalizing punctuation or source text."""
+    return {
+        source.source_id: [span.strip() for span in re.split(r"(?<=[.!?])\s+|\n\n", source.text)
+                          if span.strip() and len(span.strip()) <= 1200]
+        for source in evidence
+    }
 
 
 def build_repair_messages(
@@ -370,11 +381,6 @@ according to the existing completeness rules. Return the full corrected answer
 using the same ModelAnswer JSON schema, without commentary.
 """
     payload = json.loads(messages[1]["content"])
-    payload["verbatim_quote_candidates"] = {
-        source.source_id: [span.strip() for span in re.split(r"(?<=[.!?])\s+|\n\n", source.text)
-                          if span.strip() and len(span.strip()) <= 1200]
-        for source in evidence
-    }
     messages[0]["content"] += (
         "\nverbatim_quote_candidates contains exact source excerpts. Choose an excerpt only if it supports "
         "the claim; preserve its formatting. Longer complete excerpts are allowed. Do not shorten a quote "

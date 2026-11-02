@@ -143,6 +143,27 @@ class ResearchGenerator:
                         output, validation_error,
                     )
                     continue
+                # A completed repair can still contain a mixture of valid and
+                # invalid claims. Publish only independently validated claims,
+                # explicitly as partial; never accept a bad quotation or hide an
+                # API/schema failure through this path.
+                partial = self._validated_partial(output, response)
+                if partial is not None:
+                    response.answer, response.citations, response.claims = partial
+                    response.status = "partial"
+                    response.abstained = False
+                    response.limitations = list(dict.fromkeys([
+                        *response.limitations, *output.limitations,
+                    ]))
+                    response.limitations.append(
+                        "Some generated claims were omitted because their citations could not be verified; "
+                        "the requested answer is incomplete."
+                    )
+                    if response.answer_type == "comparison":
+                        missing = set(response.paper_ids) - {c.paper_id for c in response.citations}
+                        if missing:
+                            response.limitations.append("No validated answer claims for: " + ", ".join(sorted(missing)))
+                    break
                 response.error = ErrorInfo(
                     code="invalid_model_output",
                     message="Citation references or supporting quotes failed validation."
@@ -156,6 +177,29 @@ class ResearchGenerator:
             }), file=sys.stderr)
         response.metrics.total_seconds = time.perf_counter() - started
         return response
+
+    @staticmethod
+    def _validated_partial(output, response):
+        """Retain a strictly validated subset after the one repair is exhausted."""
+        started = time.perf_counter()
+        try:
+            valid = []
+            reason = "Some requested information could not be returned with validated citations."
+            for claim in output.claims:
+                probe = ModelAnswer(status="partial", claims=[claim], limitations=[reason])
+                try:
+                    validate_and_render(probe, response.evidence, response.answer_type, response.paper_ids)
+                except ValueError:
+                    continue
+                valid.append(claim)
+            if not valid:
+                return None
+            partial = ModelAnswer(status="partial", claims=valid, limitations=[reason])
+            answer, citations = validate_and_render(
+                partial, response.evidence, response.answer_type, response.paper_ids)
+            return answer, citations, valid
+        finally:
+            response.metrics.validation_seconds += time.perf_counter() - started
 
     def _citation_diagnostic(self, attempt, error):
         """Display only validator diagnostics; JSON escapes untrusted text."""

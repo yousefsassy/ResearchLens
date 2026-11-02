@@ -19,7 +19,7 @@ def main() -> int:
     parser.add_argument("--live", action="store_true", help="Enable inference with the configured model")
     args = parser.parse_args()
     if not args.live:
-        parser.error("No request sent. Add --live to enable local inference.")
+        parser.error("No request sent. Add --live to enable OpenAI generation.")
     try:
         generator = ResearchGenerator(config=GenerationConfig.from_env())
     except (ValueError, OSError):
