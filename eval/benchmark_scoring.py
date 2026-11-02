@@ -3,6 +3,7 @@ from collections import Counter
 import statistics
 
 from eval.generation_eval import _percentile
+from eval.benchmark_judge import evaluation_outcome
 from src.generation.citations import validate_and_render
 from src.generation.schemas import ModelAnswer
 
@@ -70,6 +71,9 @@ def summarize(rows):
     initial = [r["profile"]["initial_generation_request"]["seconds"] for r in rows if "initial_generation_request" in r["profile"]]
     repair = [r["profile"]["citation_repair_request"]["seconds"] for r in rows if "citation_repair_request" in r["profile"]]
     result = dict(question_count=len(rows), status_distribution=dict(Counter(r["response"]["status"] for r in rows)),
+        evaluation_outcome_distribution=dict(Counter(evaluation_outcome(r.get("semantic", {})) for r in rows)),
+        semantic_metric_denominators={key: sum(s.get(key) is not None for s in semantic)
+                                     for key in ("accuracy", "completeness", "semantic_citation_support")},
         status_accuracy=sum(r["evaluation"]["status_correct"] for r in rows) / len(rows) if rows else None,
         citation_validation_pass_rate=sum(validations) / len(validations) if validations else None,
         citation_validation_denominator=len(validations), accuracy=average("accuracy"), completeness=average("completeness"),
@@ -101,7 +105,9 @@ def summarize(rows):
                 status_distribution=dict(Counter(r["response"]["status"] for r in subset)),
                 status_accuracy=sum(r["evaluation"]["status_correct"] for r in subset) / len(subset),
                 latency=distribution([r["response"]["metrics"]["total_seconds"] for r in subset]),
-                semantic_evaluated_questions=len(judged))
+                semantic_evaluated_questions=len(judged),
+                semantic_metric_denominators={key: sum(s.get(key) is not None for s in judged)
+                                             for key in ("accuracy", "completeness", "semantic_citation_support")})
             for field in ("accuracy", "completeness", "semantic_citation_support"):
                 values = [r[field] for r in judged if r.get(field) is not None]
                 result[f"by_{group}"][value][field] = statistics.mean(values) if values else None

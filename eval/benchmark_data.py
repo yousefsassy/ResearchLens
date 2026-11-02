@@ -66,9 +66,17 @@ def load_benchmark(path=DEFAULT_DATASET, corpus_path=DEFAULT_CORPUS):
         raise ValueError("benchmark IDs must be unique")
     if len({" ".join(c.question.lower().split()) for c in cases}) != len(cases):
         raise ValueError("benchmark questions must be unique")
-    corpus = {row["chunk_id"]: row for row in map(json.loads, Path(corpus_path).read_text(encoding="utf-8").splitlines())}
+    rows = [json.loads(line) for line in Path(corpus_path).read_text(encoding="utf-8").splitlines() if line.strip()]
+    corpus = {row["chunk_id"]: row for row in rows}
+    if len(corpus) != len(rows):
+        raise ValueError("duplicate corpus chunk IDs")
+    papers = {row["paper_id"] for row in rows}
     for case in cases:
+        if case.paper_ids and not set(case.paper_ids) <= papers:
+            raise ValueError(f"unknown scoped paper in {case.question_id}")
         for ref in case.reference_sources:
+            if case.paper_ids and ref.paper_id not in case.paper_ids:
+                raise ValueError(f"reference outside paper scope in {case.question_id}")
             source = corpus.get(ref.chunk_id)
             if source is None or any(getattr(ref, key) != source[key] for key in ("paper_id", "pdf_page", "pdf_filename")):
                 raise ValueError(f"invalid reference location in {case.question_id}")

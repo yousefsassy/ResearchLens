@@ -20,6 +20,7 @@ sys.path.insert(0, str(ROOT))
 
 from eval.benchmark import read_rows
 from eval.benchmark_data import DEFAULT_DATASET, load_benchmark
+from eval.benchmark_judge import evaluation_outcome
 
 
 def pct(value):
@@ -65,6 +66,7 @@ def case_info(row):
         "paper_scope_valid": evaluation.get("paper_scope_valid"),
         "reference_chunk_recall_diagnostic": evaluation.get("reference_chunk_recall"),
         "semantic_status": semantic.get("status", "not_evaluated"),
+        "evaluation_outcome": evaluation_outcome(semantic),
         "semantic_accuracy": semantic.get("accuracy"),
         "semantic_completeness": semantic.get("completeness"),
         "semantic_citation_support": semantic.get("semantic_citation_support"),
@@ -89,6 +91,7 @@ def build_sections(summary, rows, test_info=None):
     judged = summary.get("semantic_evaluated_questions", 0)
     judge_errors = summary.get("semantic_status_distribution", {}).get("judge_error", 0)
     valid_denom = summary.get("citation_validation_denominator", 0)
+    denoms = summary.get("semantic_metric_denominators", {})
     usable = summary.get("semantic_status_distribution", {})
     req = summary.get("reserved_api_requests", {})
     usage = summary.get("usage", {})
@@ -112,9 +115,9 @@ def build_sections(summary, rows, test_info=None):
           f"| Needs clarification | {fraction(value_count(statuses, 'needs_clarification'), n)} | May be correct for ambiguous items |",
           f"| Expected-status agreement | {pct(summary.get('status_accuracy'))} | Agreement with draft acceptable statuses; **not factual accuracy** |",
           f"| Citation validation | {pct(summary.get('citation_validation_pass_rate'))} ({valid_denom} checked) | Valid source IDs/quotes/structure; **not semantic support** |",
-          f"| Semantic factual accuracy | {pct(summary.get('accuracy'))} | LLM judge, only {judged}/{n} questions successfully judged |",
-          f"| Semantic completeness | {pct(summary.get('completeness'))} | LLM judge, only {judged}/{n} questions successfully judged |",
-          f"| Semantic citation support | {pct(summary.get('semantic_citation_support'))} | LLM judge, only {judged}/{n} questions successfully judged |",
+          f"| Semantic factual accuracy | {pct(summary.get('accuracy'))} | LLM judge, {denoms.get('accuracy', judged)}/{n} non-null question scores; {judged} successfully judged |",
+          f"| Semantic completeness | {pct(summary.get('completeness'))} | LLM judge, {denoms.get('completeness', judged)}/{n} non-null question scores; {judged} successfully judged |",
+          f"| Semantic citation support | {pct(summary.get('semantic_citation_support'))} | LLM judge, {denoms.get('semantic_citation_support', judged)}/{n} non-null question scores; {judged} successfully judged |",
           f"| Judge coverage | {fraction(judged, n)} | Unjudged responses are **not** assigned a perfect score |",
           f"| Judge errors | {judge_errors} | Invalid/incomplete judge outputs or API failures |",
           "", "**Interpretation:** semantic judgments and rubric labels are not human-verified; do not present these numbers as independent ground-truth accuracy."]
@@ -129,8 +132,25 @@ def build_sections(summary, rows, test_info=None):
           f"| Generation input / output tokens (known subtotals) | {usage.get('prompt_tokens', {}).get('known_subtotal', 'N/A'):,} / {usage.get('completion_tokens', {}).get('known_subtotal', 'N/A'):,} |",
           f"| Judge input / output tokens (known subtotals) | {summary.get('judge_usage', {}).get('input_tokens', 0):,} / {summary.get('judge_usage', {}).get('output_tokens', 0):,} |",
           f"| Repair frequency | {pct(summary.get('repair_frequency'))} |",
-          f"| Estimated generation cost | {'$' + num(summary['estimated_cost_usd'], 4) if summary.get('estimated_cost_usd') is not None else 'Unknown (no verified pricing supplied)'} |",
-          "", "Cost estimates exclude judge usage. Account billing/credits must be checked separately."]
+          f"| Estimated generation cost | {'$' + num(summary['estimated_cost_usd'], 4) if summary.get('estimated_cost_usd') is not None else 'See API usage table below' if summary.get('api_usage_costs') else 'Unknown (no verified pricing supplied)'} |",
+          "", ("Generation and judge costs are separated below. Account billing/credits must be checked separately."
+                  if summary.get("api_usage_costs") else
+                  "Cost estimates exclude judge usage. Account billing/credits must be checked separately.")]
+    costs = summary.get("api_usage_costs")
+    if costs:
+        x += ["", "### Recorded API usage and estimated cost", "",
+              "| Category | Model | Requests | Input tokens | Cached input tokens | Output tokens | Estimated USD |",
+              "|---|---|---:|---:|---:|---:|---:|"]
+        for category, item in sorted(costs["categories"].items()):
+            amount = item.get("estimated_usd")
+            x.append(f"| {category} | {safe_cell(', '.join(item.get('models', [])))} | {item['requests']} | "
+                     f"{item['input_tokens']} | {item['cached_input_tokens']} | {item['output_tokens']} | "
+                     f"{num(amount, 6)} |")
+        x += ["", f"Total estimated API cost, **including judging**: ${num(costs.get('total_estimated_usd'), 6)}.",
+              f"Generation per processed question: ${num(costs.get('generation_per_question_usd'), 6)}; "
+              f"judge cost per successfully judged question (including failed-attempt overhead): "
+              f"${num(costs.get('judge_per_successfully_judged_question_usd'), 6)}.",
+              "Standard text-token price estimates with recorded cached-token usage; not an account billing statement."]
     for key, title in (("by_category", "By question category"), ("by_difficulty", "By difficulty")):
         x += ["", "## " + ("3. " if key == "by_category" else "4. ") + title, "",
               "| Group | N | Complete | Partial | Error | Expected-status match | Valid citations | Judged |",
@@ -151,6 +171,14 @@ def build_sections(summary, rows, test_info=None):
         x.append(f"| {safe_cell(stage)} | {count} |")
     if not summary.get("judge_error_stages"):
         x.append("| None recorded | 0 |")
+    x += ["", "Generation statuses above are independent of evaluation outcomes.", "",
+          "| Evaluation outcome | Count |", "|---|---:|"]
+    outcomes = summary.get("evaluation_outcome_distribution")
+    if outcomes is None:
+        from collections import Counter
+        outcomes = Counter(evaluation_outcome(r.get("semantic", {})) for r in rows)
+    for outcome, count in sorted(outcomes.items()):
+        x.append(f"| {safe_cell(outcome)} | {count} |")
     needs_review = [case_info(r) for r in rows if r["response"]["status"] == "error" or
                     not r["evaluation"].get("status_correct", True) or
                     r["evaluation"].get("citation_validation") is False or
@@ -231,6 +259,7 @@ def render_terminal(summary, rows, output, test_info):
     planned = summary.get("planned_questions", n)
     statuses = summary.get("status_distribution", {})
     semantic_n = summary.get("semantic_evaluated_questions", 0)
+    denoms = summary.get("semantic_metric_denominators", {})
     width = 78
     print("\n" + "=" * width)
     print("  RESEARCHLENS — FINAL BENCHMARK SCORECARD")
@@ -247,9 +276,9 @@ def render_terminal(summary, rows, output, test_info):
     print("-" * width)
     print(f"  Expected-status match : {pct(summary.get('status_accuracy'))} (draft labels, NOT factual accuracy)")
     print(f"  Valid citations       : {pct(summary.get('citation_validation_pass_rate'))} (structure/exact quotes)")
-    print(f"  Semantic accuracy     : {pct(summary.get('accuracy'))} (judged {semantic_n}/{n}; automated, unverified)")
-    print(f"  Semantic completeness : {pct(summary.get('completeness'))} (judged {semantic_n}/{n})")
-    print(f"  Semantic citation     : {pct(summary.get('semantic_citation_support'))} (judged {semantic_n}/{n})")
+    print(f"  Semantic accuracy     : {pct(summary.get('accuracy'))} (scored {denoms.get('accuracy', semantic_n)}/{n}; automated, unverified)")
+    print(f"  Semantic completeness : {pct(summary.get('completeness'))} (scored {denoms.get('completeness', semantic_n)}/{n})")
+    print(f"  Semantic citation     : {pct(summary.get('semantic_citation_support'))} (scored {denoms.get('semantic_citation_support', semantic_n)}/{n})")
     print(f"  Judge errors          : {summary.get('semantic_status_distribution', {}).get('judge_error', 0)}")
     print("-" * width)
     latency = summary.get("latency", {}).get("total_seconds", {})
@@ -257,7 +286,9 @@ def render_terminal(summary, rows, output, test_info):
     print(f"  Latency mean / P95    : {num(latency.get('mean'))}s / {num(latency.get('p95'))}s")
     print(f"  API requests (gen/judge): {ledger.get('generation', 'N/A')} / {ledger.get('judge', 'N/A')}")
     print(f"  Repair frequency      : {pct(summary.get('repair_frequency'))}")
-    if summary.get("estimated_cost_usd") is not None:
+    if summary.get("api_usage_costs"):
+        print(f"  Estimated API cost    : ${num(summary['api_usage_costs'].get('total_estimated_usd'), 6)} (generation + judge)")
+    elif summary.get("estimated_cost_usd") is not None:
         print(f"  Generation cost estimate: ${num(summary['estimated_cost_usd'], 4)} (judge excluded)")
     else:
         print("  Cost                  : Not calculated; API calls may be billed")
@@ -316,6 +347,7 @@ def full_run(args):
     from eval.benchmark_judge import LLMJudge
     from eval.benchmark import run as perform
     from src.generation.config import GenerationConfig
+    from eval.api_costs import UsageLedger
 
     if not args.live:
         raise ValueError("Explicit --live required: this runs real, potentially billable API calls")
@@ -365,10 +397,11 @@ def full_run(args):
         print("Missing OPENAI_API_KEY in .env or environment. No paid requests were made.")
         return 2
     judge = LLMJudge(args.judge_model, args.judge_budget) if args.judge_model else None
+    usage_ledger = UsageLedger(out / "api-usage.jsonl", args.budget_usd)
     print(f"\n[2/3] Running {len(cases)} live RAG questions; each line is one saved result ...", flush=True)
     try:
         perform(cases, out, mode="live", config=GenerationConfig.from_env(), resume=args.resume,
-                max_requests=args.max_requests, judge=judge, dataset=args.dataset)
+                max_requests=args.max_requests, judge=judge, dataset=args.dataset, usage_ledger=usage_ledger)
     finally:
         if judge:
             judge.close()
@@ -376,7 +409,13 @@ def full_run(args):
             (out / "tests.txt").write_text(output, encoding="utf-8")
             (out / "tests.json").write_text(json.dumps(test_info, indent=2), encoding="utf-8")
     print("\n[3/3] Generating detailed reports ...", flush=True)
+    summary = json.loads((out / "summary.json").read_text(encoding="utf-8"))
+    costs = usage_ledger.summary(summary["question_count"], summary["semantic_evaluated_questions"])
+    (out / "api-costs.json").write_text(json.dumps(costs, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+    summary["api_usage_costs"] = costs
+    (out / "summary.json").write_text(json.dumps(summary, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     summary = report(out, test_info)
+    print("Estimated total API cost:", costs["total_estimated_usd"], "USD; see api-costs.json")
     return 0 if summary.get("run_complete") else 3
 
 
@@ -390,6 +429,7 @@ def main(argv=None):
     command.add_argument("--max-requests", type=int, default=240, help="Generation request cap; default 2x 117 cases")
     command.add_argument("--judge-model", help="Optional additional API-backed semantic judge")
     command.add_argument("--judge-budget", type=int, default=120, help="Judge request cap, only if model specified")
+    command.add_argument("--budget-usd", type=float, default=18.0, help="Conservative estimated API budget; default $18")
     command.add_argument("--skip-tests", action="store_true", help="Skip offline pytest before the live run")
     command.add_argument("--resume", action="store_true", help="Resume existing output with unchanged settings")
     view = sub.add_parser("report", help="Generate reports from saved JSONL; no API calls")

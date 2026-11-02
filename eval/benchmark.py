@@ -5,12 +5,15 @@ import os
 from pathlib import Path
 import sys
 import time
+from contextlib import nullcontext
 from datetime import datetime, timezone
 from openai import OpenAIError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from eval.benchmark_data import DEFAULT_CORPUS, DEFAULT_DATASET, digest, load_benchmark
+from eval.benchmark_judge import JUDGE_PROMPT_VERSION
+from eval.api_costs import CostBudgetExceeded
 from eval.benchmark_scoring import compare, evaluate, summarize
 from src.generation import GenerationConfig, ResearchGenerator
 from src.generation.client import GenerationFailure, OpenAIClient
@@ -21,22 +24,28 @@ from src.profiling import collect
 
 class BudgetClient:
     """Reuse one SDK transport, with a separately enforced whole-run request cap."""
-    def __init__(self, config, limit, used=0, reserve=None):
+    def __init__(self, config, limit, used=0, reserve=None, usage_ledger=None):
         self.config = config.model_copy(update={"max_attempts": 1})
         self.owner = OpenAIClient(self.config)
         self.limit, self.used = limit, used
         self.reserve = reserve
+        self.usage_ledger = usage_ledger
 
     def complete(self, messages):
+        return self._request(messages, "generation")
+
+    def complete_repair(self, messages):
+        return self._request(messages, "generation_repair")
+
+    def _request(self, messages, category):
         if self.used >= self.limit:
             raise GenerationFailure("attempt_limit", "Benchmark request budget exhausted.")
         self.used += 1  # Reserve before the request, including failed requests.
         if self.reserve:
             self.reserve()
         client = OpenAIClient(self.config, client=self.owner.client)
-        return client.complete(messages)
-
-    complete_repair = complete
+        with self.usage_ledger.track(self.owner.client, category) if self.usage_ledger else nullcontext():
+            return client.complete(messages)
 
     def close(self):
         self.owner.close()
@@ -127,7 +136,8 @@ def estimate_cost(metrics, pricing, model):
 
 
 def run(cases, directory, *, mode, config=None, resume=False, max_requests=20, judge=None,
-        generator=None, pricing=None, dataset=DEFAULT_DATASET, corpus=DEFAULT_CORPUS):
+        generator=None, pricing=None, dataset=DEFAULT_DATASET, corpus=DEFAULT_CORPUS,
+        stop_on_judge_error=False, usage_ledger=None):
     directory = Path(directory)
     if mode not in {"mock", "live"} or max_requests < 1 or not cases:
         raise ValueError("Invalid run mode, budget or empty subset")
@@ -136,7 +146,7 @@ def run(cases, directory, *, mode, config=None, resume=False, max_requests=20, j
     if mode == "live":
         from dotenv import load_dotenv
         load_dotenv(root / ".env", override=False)
-    sources = sorted((root / "src").rglob("*.py")) + sorted((root / "eval").glob("benchmark*.py"))
+    sources = sorted((root / "src").rglob("*.py")) + sorted((root / "eval").glob("benchmark*.py")) + [root / "eval/api_costs.py"]
     implementation = digest({str(p.relative_to(root)): p.read_text(encoding="utf-8") for p in sources})
     manifest = dict(schema_version="1.0", mode=mode, implementation_sha256=implementation,
                     dataset_sha256=digest(Path(dataset).read_text(encoding="utf-8")),
@@ -144,7 +154,9 @@ def run(cases, directory, *, mode, config=None, resume=False, max_requests=20, j
                     question_ids=[c.question_id for c in cases], case_hashes={c.question_id: digest(c.model_dump(mode="json")) for c in cases},
                     generation={key: getattr(config, key) for key in ("model", "max_tokens", "context_chars", "request_timeout")},
                     max_requests=max_requests, judge_model=getattr(judge, "model", None),
-                    judge_budget=getattr(judge, "budget", None), pricing=pricing)
+                    judge_budget=getattr(judge, "budget", None), judge_prompt_version=JUDGE_PROMPT_VERSION,
+                    stop_on_judge_error=stop_on_judge_error,
+                    api_budget_usd=usage_ledger.budget_usd if usage_ledger else None, pricing=pricing)
     if directory.exists() and not resume:
         raise ValueError("Run directory already exists; use --resume or a new directory")
     if resume:
@@ -180,9 +192,11 @@ def run(cases, directory, *, mode, config=None, resume=False, max_requests=20, j
     owned = generator is None
     fixture = FixtureRetriever() if mode == "mock" else None
     if owned:
-        client = FixtureClient() if mode == "mock" else BudgetClient(config, max_requests, used, lambda: reserve("generation"))
+        tracking = {"usage_ledger": usage_ledger} if usage_ledger else {}
+        client = FixtureClient() if mode == "mock" else BudgetClient(config, max_requests, used, lambda: reserve("generation"), **tracking)
         generator = ResearchGenerator(retriever=fixture, client=client, config=config)
     process_calls = 0
+    consecutive_judge_failures = 0
     try:
         for case in cases:
             if case.question_id in done:
@@ -197,6 +211,9 @@ def run(cases, directory, *, mode, config=None, resume=False, max_requests=20, j
             with collect() as profile:
                 try:
                     response = generator.answer(case.question, case.paper_ids, case.answer_type)
+                except CostBudgetExceeded:
+                    response = GenerationResponse(question=case.question, status="error",
+                        error=ErrorInfo(code="api_budget_exhausted", message="Stopped before exceeding the estimated API budget."))
                 except Exception:
                     response = GenerationResponse(question=case.question, status="error",
                         error=ErrorInfo(code="pipeline_exception", message="Pipeline failed; no exception payload logged."))
@@ -208,7 +225,17 @@ def run(cases, directory, *, mode, config=None, resume=False, max_requests=20, j
             loading = profile.get("bge_model_loading", {}).get("seconds", 0)
             profile["query_embedding_exclusive"] = dict(seconds=max(0, embedding - loading), calls=profile.get("query_embedding_including_model_load", {}).get("calls", 0))
             serialized = response.model_dump(mode="json")
-            semantic = judge.evaluate(case, response) if judge and mode == "live" and not response.error else {"status": "not_evaluated"}
+            semantic = {"status": "not_evaluated", "evaluation_outcome": "not_evaluated",
+                        "reason": "generation_error" if response.error else "judge_not_enabled"}
+            if judge and mode == "live" and not response.error:
+                try:
+                    # Evaluator exceptions must not lose a completed generation.
+                    independent = GenerationResponse.model_validate(serialized)
+                    with usage_ledger.track(judge.client, "judge") if usage_ledger else nullcontext():
+                        semantic = judge.evaluate(case, independent)
+                except Exception:
+                    semantic = {"status": "judge_error", "evaluation_outcome": "judge_unavailable",
+                                "error_stage": "evaluator", "error_code": "evaluator_exception"}
             # Judges only receive independent serialized data and cannot replace the response.
             if serialized != response.model_dump(mode="json"):
                 raise ValueError("Evaluator modified the answer")
@@ -238,6 +265,19 @@ def run(cases, directory, *, mode, config=None, resume=False, max_requests=20, j
             save_summary(directory, rows, manifest)
             print(f"{case.question_id}: {response.status} | {response.metrics.total_seconds:.2f}s | attempts {response.metrics.attempts}")
             if response.error and response.error.code in {"attempt_limit", "openai_api_error"}:
+                break
+            if semantic.get("evaluation_outcome") == "judge_api_failure":
+                break  # Stop on provider/auth/quota trouble rather than spending further.
+            if stop_on_judge_error and semantic.get("status") in {"judge_error", "budget_exhausted"}:
+                break
+            if usage_ledger and usage_ledger.stopped:
+                break
+            if semantic.get("evaluation_outcome") == "judge_output_validation_failure":
+                consecutive_judge_failures += 1
+            elif semantic.get("status") == "evaluated":
+                consecutive_judge_failures = 0
+            if consecutive_judge_failures >= 3:
+                print("Stopped after three consecutive judge validation failures; completed rows are preserved.")
                 break
     finally:
         if owned:
@@ -283,7 +323,8 @@ def main(argv=None):
         elif args.command == "compare":
             before = json.loads((args.baseline / "manifest.json").read_text(encoding="utf-8"))
             after = json.loads((args.optimized / "manifest.json").read_text(encoding="utf-8"))
-            if any(before[key] != after[key] for key in ("mode", "corpus_sha256", "dataset_sha256", "judge_model")):
+            if any(before.get(key) != after.get(key) for key in
+                   ("mode", "corpus_sha256", "dataset_sha256", "judge_model", "judge_prompt_version")):
                 raise ValueError("Comparison requires matching corpus, dataset, mode and judge")
             print(json.dumps(compare(read_rows(args.baseline), read_rows(args.optimized)), indent=2))
         else:
