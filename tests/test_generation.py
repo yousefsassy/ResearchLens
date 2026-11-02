@@ -97,6 +97,10 @@ def test_config_env_override_and_secret_redaction(tmp_path, monkeypatch):
     ("Compare P002 and P003", None, "auto", ["P002", "P003"], False),
     ("Compare three papers P001 P002 P003", None, "auto", ["P001", "P002", "P003"], True),
     ("What does P999 say?", None, "auto", [], True),
+    ("What does HaluEval find about hallucination recognition?", None, "auto", ["P007"], False),
+    ("What are the four steps of Chain-of-Verification?", None, "auto", ["P008"], False),
+    ("What does the NLG survey say about hallucination?", None, "auto", ["P006"], False),
+    ("What does the hallucination survey say about hallucination?", None, "auto", ["P001"], False),
     ("question", [], "auto", [], True),
 ])
 def test_paper_scope(question, scope, kind, expected, clarify, catalog):
