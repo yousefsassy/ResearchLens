@@ -70,7 +70,9 @@ def _aspect_query(name, aspect):
 
 @timed("evidence_selection_including_search")
 def select_evidence(retriever, question: str, interpretation: Interpretation,
-                    catalog: dict[str, Paper], context_chars: int) -> EvidenceSelection:
+                    catalog: dict[str, Paper], context_chars: int,
+                    year: int | None = None, author: str | None = None,
+                    section: str | None = None) -> EvidenceSelection:
     if context_chars <= 0:
         raise ValueError("context_chars must be positive")
     seen, cache = {}, {}
@@ -82,10 +84,13 @@ def select_evidence(retriever, question: str, interpretation: Interpretation,
         key = (query.strip(), tuple(scope) if scope is not None else None)
         if key in cache:
             return cache[key]
+        filters = {name: value for name, value in
+                   (("year", year), ("author", author), ("section", section))
+                   if value is not None}
         try:
             with measure("aspect_search_including_initialization"):
                 rows = retriever.search(question=query, top_k=8, mode="hybrid", rerank=False,
-                                        paper_ids=scope, exclude_flagged=True)
+                                        paper_ids=scope, exclude_flagged=True, **filters)
         except (OSError, RuntimeError, ImportError):
             cache[key] = ([], True)
             return cache[key]

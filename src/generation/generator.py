@@ -34,7 +34,9 @@ class ResearchGenerator:
             self.retriever = ResearchRetriever()
         return self.retriever
 
-    def answer(self, question: str, paper_ids=None, answer_type: str = "auto") -> GenerationResponse:
+    def answer(self, question: str, paper_ids=None, answer_type: str = "auto",
+               year: int | None = None, author: str | None = None,
+               section: str | None = None) -> GenerationResponse:
         started = time.perf_counter()
         response = GenerationResponse(question=question if isinstance(question, str) else "", status="error")
         try:
@@ -54,7 +56,8 @@ class ResearchGenerator:
         stage = time.perf_counter()
         try:
             selection = select_evidence(self._get_retriever(), question, interpreted,
-                                        self.catalog, self.config.context_chars)
+                                        self.catalog, self.config.context_chars,
+                                        year=year, author=author, section=section)
             response.evidence = selection.passages
             response.limitations = selection.gaps
         except (ImportError, OSError, ValueError, TypeError, KeyError, RuntimeError):

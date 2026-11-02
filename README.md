@@ -33,6 +33,8 @@ From the project root, prepare the corpus and vector index if they are not alrea
 .\.venv\Scripts\python.exe scripts/build_index.py --device cpu
 ```
 
+Chunking reads `data/papers_manifest.csv` and attaches paper title, authors, year, category, source URL, licence, and an inferred section to every chunk. If the manifest or the metadata schema changes, rebuild both `chunks.jsonl` and the index.
+
 If `data/processed/chunks.jsonl` and the matching `data/indexes/` files already exist, you can skip rebuilding them. The embedding model is downloaded on first use if it is not cached.
 
 Ask a research question:
@@ -45,6 +47,18 @@ To compare papers, omit `--paper-ids` or supply the relevant paper IDs:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/ask_researchlens.py --live --question "Compare SelfCheckGPT and FActScore." --paper-ids P002 P003 --answer-type comparison
+```
+
+Optional metadata filters restrict retrieval before ranking. `--author` and `--section` are case-insensitive substring matches; `--year` is exact:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/ask_researchlens.py --live --question "What limitations does SelfCheckGPT report?" --paper-ids P002 --year 2023 --author Manakul --section Limitations
+```
+
+The same filters work with the retrieval-only CLI:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/test_retrieval.py --question "How does SelfCheckGPT detect hallucinations?" --mode hybrid --no-rerank --year 2023 --author Manakul --section Methods
 ```
 
 The command outputs a structured JSON answer with citation details. **Live generation uses the OpenAI API and may incur charges.** There is no deployed web interface in this repository.

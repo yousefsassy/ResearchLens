@@ -45,6 +45,10 @@ class Evidence(StrictModel):
     paper_id: str = Field(min_length=1)
     pdf_filename: str = Field(min_length=1)
     title: str | None = None
+    authors: str | None = None
+    year: int | None = Field(default=None, ge=1)
+    category: str | None = None
+    section: str | None = None
     pdf_page: int = Field(ge=1)
     text: str = Field(min_length=1)
     needs_review: bool
@@ -66,6 +70,9 @@ class Citation(StrictModel):
     paper_id: str
     pdf_filename: str
     title: str | None
+    authors: str | None = None
+    year: int | None = Field(default=None, ge=1)
+    section: str | None = None
     pdf_page: int
 
 

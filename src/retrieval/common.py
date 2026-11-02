@@ -50,14 +50,46 @@ def validate_query(question: str, top_k: int) -> str:
     return question.strip()
 
 
+def validate_metadata_filters(year: int | None, author: str | None,
+                              section: str | None) -> None:
+    """Reject malformed filters before a backend can silently ignore them."""
+    if year is not None and (type(year) is not int or year < 1):
+        raise ValueError("year must be a positive integer")
+
+    for name, value in (("author", author), ("section", section)):
+        if value is not None and (not isinstance(value, str) or not value.strip()):
+            raise ValueError(f"{name} must be a nonempty string")
+
+
 def candidate_indices(chunks: list[dict], paper_ids: Iterable[str] | None,
-                      exclude_flagged: bool) -> list[int]:
+                      exclude_flagged: bool, year: int | None = None,
+                      author: str | None = None,
+                      section: str | None = None) -> list[int]:
     if isinstance(paper_ids, str):
         raise ValueError("paper_ids must be a collection of IDs, not one string")
+
+    validate_metadata_filters(year, author, section)
     allowed = None if paper_ids is None else set(paper_ids)
-    return [i for i, chunk in enumerate(chunks)
-            if (allowed is None or chunk["paper_id"] in allowed)
-            and not (exclude_flagged and (chunk["needs_review"] or chunk["review_flags"]))]
+    author_query = author.casefold() if author is not None else None
+    section_query = section.casefold() if section is not None else None
+    indices = []
+
+    for i, chunk in enumerate(chunks):
+        if allowed is not None and chunk["paper_id"] not in allowed:
+            continue
+        if exclude_flagged and (chunk["needs_review"] or chunk["review_flags"]):
+            continue
+        if year is not None and chunk.get("year") != year:
+            continue
+        if author_query is not None and author_query not in str(
+                chunk.get("authors", "")).casefold():
+            continue
+        if section_query is not None and section_query not in str(
+                chunk.get("section", "")).casefold():
+            continue
+        indices.append(i)
+
+    return indices
 
 
 def make_result(chunk: dict, score: float, kind: str) -> dict:

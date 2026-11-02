@@ -76,6 +76,21 @@ Each JSON-serializable result preserves `chunk_id`, `paper_id`, `pdf_filename`, 
 
 `paper_ids=["P002"]` restricts sources; `None` searches all, an empty list matches none. `exclude_flagged=True` removes either flagged or review-needed chunks; by default these remain visible. Flags are not a complete detector of extraction errors.
 
+`year`, `author`, and `section` are optional metadata filters. They are applied before ranking, so both BM25 and vector branches see the same candidate set:
+
+```python
+retriever.search(
+    question="How does SelfCheckGPT detect hallucinations?",
+    mode="hybrid",
+    rerank=False,
+    year=2023,
+    author="Manakul",
+    section="Methods",
+)
+```
+
+`year` must be a positive integer. `author` and `section` are case-insensitive substring matches against the chunk metadata. If a corpus was built before metadata was added, filtering returns no matches; rebuild `chunks.jsonl` and the index rather than assuming the filter was applied. The same filters are available on `scripts/test_retrieval.py` and `scripts/ask_researchlens.py` as `--year`, `--author`, and `--section`.
+
 Reuse instances serially: `last_timings` is mutable, not a concurrent request log. `status()` checks index validity without loading model weights. Defaults resolve data paths relative to the project, not the caller's working directory. Missing/stale data raises errors; there is no synthetic-vector fallback. Empty questions are invalid. Empty or fewer-than-k results are possible and must be handled by the generation/UI layer.
 
 ## Configuration

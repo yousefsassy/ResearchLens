@@ -18,9 +18,12 @@ class VectorSearch:
         self._cached_encoder = encoder
 
     def search(self, question: str, top_k: int = 5, paper_ids=None,
-               exclude_flagged: bool = False) -> list[dict]:
+               exclude_flagged: bool = False, year: int | None = None,
+               author: str | None = None, section: str | None = None) -> list[dict]:
         question = validate_query(question, top_k)
-        indices = candidate_indices(self.chunks, paper_ids, exclude_flagged)
+        indices = candidate_indices(
+            self.chunks, paper_ids, exclude_flagged,
+            year=year, author=author, section=section)
         if not indices:
             return []
         if self.encoder is not self._cached_encoder:

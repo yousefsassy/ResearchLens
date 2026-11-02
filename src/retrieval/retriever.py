@@ -1,7 +1,7 @@
 """Public Member 3 interface. Reuse one instance across questions."""
 import time
 from .bm25_search import BM25Search
-from .common import load_chunks, validate_query
+from .common import load_chunks, validate_metadata_filters, validate_query
 from .config import RetrievalConfig
 from .embeddings import BGEEncoder, load_index
 from .hybrid_search import HybridSearch
@@ -32,8 +32,11 @@ class ResearchRetriever:
         return self._vector
 
     def search(self, question: str, top_k: int = 5, mode: str = "hybrid",
-               rerank: bool = True, paper_ids=None, exclude_flagged: bool = False) -> list[dict]:
+               rerank: bool = True, paper_ids=None, exclude_flagged: bool = False,
+               year: int | None = None, author: str | None = None,
+               section: str | None = None) -> list[dict]:
         question = validate_query(question, top_k)
+        validate_metadata_filters(year, author, section)
         if mode not in {"bm25", "vector", "hybrid"}:
             raise ValueError("mode must be bm25, vector, or hybrid")
         if rerank and top_k > self.config.rerank_candidates:
@@ -42,7 +45,8 @@ class ResearchRetriever:
         count = self.config.rerank_candidates if rerank else top_k
         backend = self.bm25 if mode == "bm25" else self.vector if mode == "vector" else HybridSearch(
             self.bm25, self.vector, self.config)
-        results = backend.search(question, count, paper_ids, exclude_flagged)
+        results = backend.search(question, count, paper_ids, exclude_flagged,
+                                 year=year, author=author, section=section)
         retrieved = time.perf_counter()
         if rerank:
             results = self.reranker.rerank(question, results, top_k)

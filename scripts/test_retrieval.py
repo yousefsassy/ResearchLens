@@ -17,10 +17,15 @@ def main() -> None:
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--paper-ids", nargs="*")
     parser.add_argument("--exclude-flagged", action="store_true")
+    parser.add_argument("--year", type=int)
+    parser.add_argument("--author")
+    parser.add_argument("--section")
     args = parser.parse_args()
     retriever = ResearchRetriever(config_from_args(args))
     rows = retriever.search(args.question, top_k=args.top_k, mode=args.mode,
-        rerank=not args.no_rerank, paper_ids=args.paper_ids, exclude_flagged=args.exclude_flagged)
+        rerank=not args.no_rerank, paper_ids=args.paper_ids,
+        exclude_flagged=args.exclude_flagged, year=args.year,
+        author=args.author, section=args.section)
     print(json.dumps({"question": args.question, "results": rows,
                       "timings": retriever.last_timings}, ensure_ascii=False, indent=2))
 

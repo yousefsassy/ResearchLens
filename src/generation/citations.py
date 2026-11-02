@@ -72,6 +72,9 @@ def validate_and_render(
                     paper_id=source.paper_id,
                     pdf_filename=source.pdf_filename,
                     title=source.title,
+                    authors=source.authors,
+                    year=source.year,
+                    section=source.section,
                     pdf_page=source.pdf_page,
                 )
             )

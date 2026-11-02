@@ -33,11 +33,15 @@ class HybridSearch:
         self.bm25, self.vector, self.config = bm25, vector, config
 
     def search(self, question: str, top_k: int = 5, paper_ids=None,
-               exclude_flagged: bool = False) -> list[dict]:
+               exclude_flagged: bool = False, year: int | None = None,
+               author: str | None = None, section: str | None = None) -> list[dict]:
         validate_query(question, top_k)
         if paper_ids is not None and not isinstance(paper_ids, str):
             paper_ids = tuple(paper_ids)
         filters = dict(paper_ids=paper_ids, exclude_flagged=exclude_flagged)
+        for name, value in (("year", year), ("author", author), ("section", section)):
+            if value is not None:
+                filters[name] = value
         return reciprocal_rank_fusion({
             "bm25": self.bm25.search(question, self.config.bm25_candidates, **filters),
             "vector": self.vector.search(question, self.config.vector_candidates, **filters)},
