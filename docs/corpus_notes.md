@@ -55,7 +55,7 @@ The cleaned research papers are divided into smaller text chunks for downstream 
 - Chunks exceeding 1,800 characters: 0
 - Chunks carrying page-level review flags: 95 across 29 pages
 
-The 612-chunk figure in earlier notes came from an older extraction. The current corpus and index must be regenerated together and the exact count recorded after each build. Chunking is structurally validated; manual inspection of short chunks and flagged source regions remains necessary before treating all chunks as reliable evidence.
+The 612-chunk figure in earlier notes came from an older extraction. The current corpus and index must be regenerated together and the exact count recorded after each build. `requirements.txt` pins PyMuPDF 1.28.2 and PyMuPDF4LLM 0.3.4; that combination reproduces the current 638-chunk, 95-flagged-chunk corpus. Chunking is structurally validated; manual inspection of short chunks and flagged source regions remains necessary before treating all chunks as reliable evidence.
 
 ### Metadata
 

@@ -1,5 +1,6 @@
-pymupdf>=1.27,<2
-pymupdf4llm>=0.2,<1
+# Pinned: chunk boundaries and benchmark reference quotes depend on these versions.
+pymupdf==1.28.2
+pymupdf4llm==0.3.4
 sentence-transformers>=5,<6
 numpy>=1.26,<3
 rank-bm25==0.2.2

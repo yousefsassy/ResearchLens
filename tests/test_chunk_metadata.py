@@ -53,8 +53,13 @@ def test_manifest_rejects_duplicate_or_missing_fields(tmp_path):
     ("**5.1** **SelfCheckGPT with BERTScore**\n\nBody", "5.1 SelfCheckGPT with BERTScore"),
     ("**Limitations**\n\nScope", "Limitations"),
     ("1 Introduction", "1 Introduction"),
+    ("4.1 GPT-4 Evaluation", "4.1 GPT-4 Evaluation"),
     ("This is an ordinary sentence. It has a period.", None),
     ("78.84 80.00", None),
+    ("4 Gopher is a 280-billion parameter model", None),
+    ("200 samples (10 per category)", None),
+    ("2023 MQAG: Multiple-choice question answering", None),
+    ("Results show a large improvement.", None),
 ])
 def test_detect_section(text, expected):
     assert detect_section(text) == expected

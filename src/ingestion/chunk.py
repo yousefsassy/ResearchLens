@@ -19,10 +19,13 @@ DEFAULT_SECTION = "Front Matter"
 NAMED_SECTIONS = re.compile(
     r"^(Abstract|Introduction|Related Work|Background|Methods?|Methodology|"
     r"Approach|Experiments?|Experimental Setup|Evaluation|Results?|Discussion|"
-    r"Limitations?|Conclusions?|References|Appendix(?:\s+[A-Z0-9.]+)?)\b",
+    r"Limitations?|Conclusions?|References|Appendix(?:\s+[A-Z0-9.]+)?)"
+    r"\s*[.:]?\s*$",
     re.IGNORECASE,
 )
-NUMBERED_SECTION = re.compile(r"^(\d+(?:\.\d+)*)[.)]?\s+([A-Za-z][^.]{1,80})$")
+NUMBERED_SECTION = re.compile(
+    r"^([0-9]{1,2}(?:\.[0-9]{1,2})*)[.)]?\s+([A-Za-z][^.]{1,80})$"
+)
 
 
 def split_paragraphs(text):
@@ -131,10 +134,16 @@ def detect_section(text):
 
     if numbered:
         title = numbered.group(2).strip()
+        words = title.split()
 
-        # A heading is short and does not end like a sentence. This avoids
-        # treating a numbered list item or a number-heavy table row as a section.
-        if len(title.split()) <= 12 and not title.endswith((".", "?", "!")):
+        # A heading is short, does not end like a sentence, and normally ends
+        # in a title word. This rejects table rows such as
+        # "4 Gopher is a 280-billion parameter model" and
+        # "200 samples (10 per category)" without rejecting "4.1 GPT-4 Evaluation".
+        if (len(words) <= 12
+                and not title.endswith((".", "?", "!"))
+                and (not re.search(r"\d", title) or len(words) <= 4)
+                and re.match(r"^[A-Z0-9]", words[-1])):
             return f"{numbered.group(1)} {title}"
 
     named = NAMED_SECTIONS.match(first)
