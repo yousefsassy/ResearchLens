@@ -6,8 +6,10 @@ __pycache__/
 .pytest_cache/
 .cache/
 tmp/
+.streamlit/secrets.toml
 data/indexes/
 data/processed/
+data/feedback/
 
 eval/results/*
 !eval/results/final/

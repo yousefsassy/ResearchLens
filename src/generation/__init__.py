@@ -1,7 +1,14 @@
-"""Local generation; importing this package does not initialize retrieval."""
-from .client import OpenAIClient
-from .config import GenerationConfig
-from .generator import ResearchGenerator
-from .schemas import GenerationResponse
+"""Lazy exports keep schema-only UI clients independent of inference libraries."""
+from importlib import import_module
 
-__all__ = ["ResearchGenerator", "GenerationConfig", "GenerationResponse", "OpenAIClient"]
+_EXPORTS = {"OpenAIClient": ".client", "GenerationConfig": ".config",
+            "ResearchGenerator": ".generator", "GenerationResponse": ".schemas"}
+__all__ = list(_EXPORTS)
+
+
+def __getattr__(name):
+    if name not in _EXPORTS:
+        raise AttributeError(name)
+    value = getattr(import_module(_EXPORTS[name], __name__), name)
+    globals()[name] = value
+    return value

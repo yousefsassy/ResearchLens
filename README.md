@@ -1,6 +1,6 @@
 # ResearchLens
 
-A retrieval-augmented question-answering system for exploring scientific papers about **LLM hallucinations, factuality, and retrieval-augmented generation**. It searches a curated corpus of five research papers, generates evidence-grounded answers, provides paper/page citations, and can abstain when evidence is insufficient.
+A retrieval-augmented question-answering system for exploring scientific papers about **LLM hallucinations, factuality, and retrieval-augmented generation**. It searches a curated corpus of eight research papers, generates evidence-grounded answers, provides paper/page citations, and can abstain when evidence is insufficient.
 
 ResearchLens combines **BM25 keyword search**, **BGE sentence embeddings**, and **Reciprocal Rank Fusion (RRF)**. An optional cross-encoder reranker is available; the current generation workflow uses hybrid retrieval without reranking. Answers are produced with the OpenAI API and checked against exact source quotations.
 
@@ -20,7 +20,19 @@ Add your API key to `.env`:
 OPENAI_API_KEY=your_api_key_here
 ```
 
-If `.env.example` is missing, create it with the variable name shown above (without a real key). **Never commit `.env` to GitHub.**
+Do not overwrite an existing configured `.env`. **Never commit `.env` to GitHub.**
+
+For the local web application, install `requirements-web.txt`, then start the
+backend and frontend in separate terminals:
+
+```bash
+.venv/bin/python -m uvicorn app.api:app --host 127.0.0.1 --port 8000
+RESEARCHLENS_API_URL=http://127.0.0.1:8000 .venv/bin/python -m streamlit run app/streamlit_app.py
+```
+
+Streamlit calls FastAPI over HTTP; only FastAPI loads BGE and the OpenAI key.
+See [web setup and troubleshooting](docs/web_app.md) for installation, optional
+filters, readiness, response statuses and examples. No remote service is deployed.
 
 ## Run
 
@@ -61,7 +73,7 @@ The same filters work with the retrieval-only CLI:
 .\.venv\Scripts\python.exe scripts/test_retrieval.py --question "How does SelfCheckGPT detect hallucinations?" --mode hybrid --no-rerank --year 2023 --author Manakul --section SelfCheckGPT
 ```
 
-The command outputs a structured JSON answer with citation details. **Live generation uses the OpenAI API and may incur charges.** There is no deployed web interface in this repository.
+The command outputs a structured JSON answer with citation details. **Live generation uses the OpenAI API and may incur charges.** A local Streamlit/FastAPI interface is also available.
 
 ## Corpus
 
@@ -79,6 +91,15 @@ The current corpus contains **8 papers, 250 PDF pages, and 1,001 text chunks**:
 | P008 | Chain-of-Verification Reduces Hallucination in Large Language Models |
 
 ## Results
+
+The completed **117-question, eight-paper benchmark** produced 79 complete answers,
+27 partial answers, seven abstentions, three clarifications and one generation
+error. Combined citation validation was 99.07% (106/107 checked); judge coverage
+was 109/117. Mean judged factual accuracy was 95.63% on 101 applicable questions,
+not all 117. Mean pipeline latency was 3.80 seconds and estimated total evaluation
+cost was $1.03060, including judging. Rubrics remain human-unverified. See
+[the full benchmark review](docs/full_benchmark_review.md) for exact denominators,
+costs and failure analysis. Historical results below describe earlier versions.
 
 ### Retrieval â€” preliminary pilot
 
@@ -114,7 +135,7 @@ One full run of **105 questions** using `gpt-5.4-nano` for generation and an opt
 | Judge coverage | 60/105 (57.1%); 37 judge-validation errors |
 | Mean / median / p95 latency | 4.37 s / 3.68 s / 9.63 s |
 | Generation / judge API requests | 117 / 97 |
-| Automated tests | 198 passed in the historical run; current suite: 220 |
+| Automated tests | 198 passed in the historical run; current integration suite: 360 |
 
 **Evaluation limitations:** The benchmark labels and rubrics have **not been human-verified**. Semantic scores cover only the successfully judged subset and **must not be reported as accuracy over all 105 questions**. Citation validation checks source IDs, quotations, and structure; it is not the same as semantic citation support. Estimated API cost was not calculated.
 
@@ -140,7 +161,8 @@ This command may make up to **240 generation requests** and **120 judge requests
 
 | Path | Contents |
 |---|---|
-| `data/raw/` | Five scientific PDFs |
+| `data/raw/` | Eight scientific PDFs |
+| `app/` | FastAPI backend, Streamlit HTTP client/interface, feedback |
 | `data/processed/` | Extracted pages, cleaned text, and chunks (generated locally) |
 | `data/indexes/` | Cached embeddings and index metadata (generated locally) |
 | `src/ingestion/` | PDF extraction, cleaning, and chunking |
@@ -155,4 +177,4 @@ Detailed system design: [`docs/retrieval_design.md`](docs/retrieval_design.md) Â
 
 ## Limitations
 
-ResearchLens currently covers eight papers. PDF extraction can be unreliable for equations and tables; multi-paper comparisons sometimes omit requested details; and generated responses can fail strict citation validation. The LLM judge still requires reliability improvements and human-reviewed evaluation labels. The application is currently a **CLI prototype**, not a deployed web service.
+ResearchLens currently covers eight papers. PDF extraction can be unreliable for equations and tables; multi-paper comparisons sometimes omit requested details; and generated responses can fail strict citation validation. The LLM judge still requires reliability improvements and human-reviewed evaluation labels. CLI and local Streamlit/FastAPI interfaces are available; a remote service has not been deployed.

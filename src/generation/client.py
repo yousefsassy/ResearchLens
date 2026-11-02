@@ -5,7 +5,7 @@ import os
 import time
 
 from dotenv import load_dotenv
-from openai import OpenAI, OpenAIError
+from openai import OpenAI, OpenAIError, APITimeoutError
 from pydantic import ValidationError
 
 from .config import GenerationConfig, PROJECT_ROOT
@@ -167,8 +167,9 @@ class OpenAIClient:
 
                 metrics.accounting_complete = False
                 raise GenerationFailure(
-                    "openai_api_error",
-                    "OpenAI request failed. Check the API key, model access, and quota.",
+                    "openai_timeout" if isinstance(error, APITimeoutError) else "openai_api_error",
+                    ("OpenAI request timed out." if isinstance(error, APITimeoutError) else
+                     "OpenAI request failed. Check the API key, model access, and quota."),
                     retryable=retryable,
                     metrics=metrics,
                 ) from None
