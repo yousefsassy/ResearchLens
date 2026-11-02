@@ -83,8 +83,7 @@ Four targeted corrections were applied during the cleaning stage:
 - P001, pages 31, 50, and 53: removed repeated running headers.
 - P003, page 24: removed a page-number footer (`12099`).
 
-After regeneration, the total number of chunks decreased from 615 to 612.
-Legitimate short passages, figure captions, and section headings were preserved.
+At the time of the original five-paper cleanup, the total number of chunks decreased from 615 to 612. After adding P006-P008, the current corpus contains 1,001 chunks. Legitimate short passages, figure captions, and section headings were preserved.
 
 The pipeline is structurally validated. However, flagged source regions
 still require manual verification before being used as reliable evidence.
