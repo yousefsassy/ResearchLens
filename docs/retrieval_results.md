@@ -23,7 +23,7 @@ Historical 638-chunk CPU index build: 128.114 s; valid-index reuse: 0.059823 s. 
 
 ## Tests
 
-Current suite: **216 passed** after the metadata and corpus expansion changes.
+Current suite: **220 passed** after the metadata and corpus expansion changes.
 
 Tests cover validation, index integrity/alignment, ranking, filtering, fusion, reranking, lazy loading, citation preservation, evaluation calculations and the ablation CLI. Neural unit tests use fakes; the corpus integration test uses real BM25. Historical real-model smoke results demonstrate all four configurations, not retrieval accuracy.
 
