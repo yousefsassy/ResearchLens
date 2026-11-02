@@ -2,7 +2,7 @@
 
 This is a reporting layer over eval/benchmark.py; it does not change RAG behavior.
 Run from the repository root (Windows PowerShell example):
-    python eval/full_benchmark.py run --live --max-requests 210
+    python eval/full_benchmark.py run --live --max-requests 240
     python eval/full_benchmark.py report eval/results/<run-name>
 """
 from __future__ import annotations
