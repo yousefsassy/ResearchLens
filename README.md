@@ -1,191 +1,183 @@
 # ResearchLens
 
-A retrieval-augmented question-answering system for exploring scientific papers about **LLM hallucinations, factuality, and retrieval-augmented generation**. It searches a curated corpus of eight research papers, generates evidence-grounded answers, provides paper/page citations, and can abstain when evidence is insufficient.
+**A citation-grounded retrieval-augmented research assistant for eight papers on LLM hallucination, factuality, and RAG.**
 
-ResearchLens combines **BM25 keyword search**, **BGE sentence embeddings**, and **Reciprocal Rank Fusion (RRF)**. An optional cross-encoder reranker is available; the current generation workflow uses hybrid retrieval without reranking. Answers are produced with the OpenAI API and checked against exact source quotations.
+ResearchLens retrieves relevant passages with **BM25 + BGE embeddings**, fuses rankings with **Reciprocal Rank Fusion (RRF)**, and generates answers grounded only in the retrieved evidence. Every claim is checked against an exact source quotation, and the system abstains when the evidence is insufficient.
 
-## Setup
+## Repository and demo
 
-Requires **Python 3.11**, an **OpenAI API key**, and the dependencies in `requirements.txt`.
+| Item | Value |
+|---|---|
+| Repository | https://github.com/yousefsassy/ResearchLens |
+| Active branch | `feature/streamlit-cloud` |
+| Demo passcode | `ResearchLens!2026#Demo47` |
+| Demo entrypoint | `cloud/streamlit_app.py` |
+| Public deployment | Pending final Streamlit Community Cloud release |
 
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-Copy-Item .env.example .env
+> The demo passcode is for the course demonstration only. Rotate it after grading.
+
+## At a glance
+
+| Component | Choice |
+|---|---|
+| Corpus | 8 papers · 250 PDF pages · 1,001 chunks |
+| Keyword search | BM25 (`rank-bm25`) |
+| Embeddings | `BAAI/bge-small-en-v1.5`, 384 dimensions |
+| Vector index | NumPy exact cosine, 1,001 × 384 |
+| Fusion | Reciprocal Rank Fusion, k = 60 |
+| Generation | OpenAI API, structured claims + quote validation |
+| Backend | FastAPI |
+| Frontend | Streamlit |
+| Benchmark | 117 questions |
+| Tests | 415 passed |
+
+## Architecture
+
+```text
+PDFs + papers_manifest.csv
+        |
+        v
+extract -> clean -> chunk + metadata
+        |
+        +--> BM25 keyword index
+        |
+        +--> BGE embeddings -> validated NumPy index
+        |
+        v
+BM25 + vector search -> RRF -> metadata filters
+        |
+        v
+evidence selection -> grounded prompt -> OpenAI
+        |
+        v
+citation validation -> answer + paper/page/chunk citations
 ```
 
-Add your API key to `.env`:
+The browser talks to Streamlit. Streamlit can call FastAPI over HTTP, or use the shared `ResearchService` directly in standalone Streamlit Cloud mode. **The OpenAI key stays server-side.**
 
-```dotenv
-OPENAI_API_KEY=your_api_key_here
+## Demo access
+
+The Streamlit Community Cloud entrypoint is:
+
+```text
+cloud/streamlit_app.py
 ```
 
-Do not overwrite an existing configured `.env`. **Never commit `.env` to GitHub.**
+Use the passcode shown above. The app includes:
 
-For the local web application, install `requirements-web.txt`, then start the
-backend and frontend in separate terminals:
+- question answering over all papers or one selected paper,
+- two-paper comparisons,
+- `year`, `author`, and `section` metadata filters,
+- grounded answers with paper/page/chunk/quote citations,
+- evidence and limitations,
+- request latency and token metrics,
+- thumbs-up/down feedback.
 
-```bash
-.venv/bin/python -m uvicorn app.api:app --host 127.0.0.1 --port 8000
-RESEARCHLENS_API_URL=http://127.0.0.1:8000 .venv/bin/python -m streamlit run app/streamlit_app.py
-```
-
-Streamlit calls FastAPI over HTTP; only FastAPI loads BGE and the OpenAI key.
-See [web setup and troubleshooting](docs/web_app.md) for installation, optional
-filters, readiness, response statuses and examples. No remote service is deployed.
-
-For **standalone free Streamlit Community Cloud hosting** (no Oracle account or
-separate API server), follow [the standalone deployment guide](docs/streamlit_cloud.md).
-Use entrypoint `cloud/streamlit_app.py` and its neighboring runtime requirements.
-The same service and UI are reused, with a private passcode and temporary demo
-allowance. The runtime bundle must first be published as a release asset.
-
-For the prepared **Streamlit Community Cloud + Oracle ARM** deployment, follow
-[the deployment runbook](docs/deployment.md). It includes pinned frontend/backend
-dependencies, prebuilt artifact packaging, Caddy/systemd templates and demo
-authentication with a persistent request allowance. No cloud deployment exists yet.
-
-## Run
-
-From the project root, prepare the corpus and vector index if they are not already present:
-
-```powershell
-.\.venv\Scripts\python.exe -m src.ingestion.extract
-.\.venv\Scripts\python.exe -m src.ingestion.clean
-.\.venv\Scripts\python.exe -m src.ingestion.chunk
-.\.venv\Scripts\python.exe scripts/build_index.py --device cpu
-```
-
-Chunking reads `data/papers_manifest.csv` and attaches paper title, authors, year, category, source URL, licence, and an inferred section to every chunk. If the manifest or the metadata schema changes, rebuild both `chunks.jsonl` and the index.
-
-If `data/processed/chunks.jsonl` and the matching `data/indexes/` files already exist, you can skip rebuilding them. The embedding model is downloaded on first use if it is not cached.
-
-Ask a research question:
-
-```powershell
-.\.venv\Scripts\python.exe scripts/ask_researchlens.py --live --question "How does SelfCheckGPT detect hallucinations?" --paper-ids P002
-```
-
-To compare papers, omit `--paper-ids` or supply the relevant paper IDs:
-
-```powershell
-.\.venv\Scripts\python.exe scripts/ask_researchlens.py --live --question "Compare SelfCheckGPT and FActScore." --paper-ids P002 P003 --answer-type comparison
-```
-
-Optional metadata filters restrict retrieval before ranking. `--author` and `--section` are case-insensitive substring matches; `--year` is exact:
-
-```powershell
-.\.venv\Scripts\python.exe scripts/ask_researchlens.py --live --question "What limitations does SelfCheckGPT report?" --paper-ids P002 --year 2023 --author Manakul --section Limitations
-```
-
-The same filters work with the retrieval-only CLI:
-
-```powershell
-.\.venv\Scripts\python.exe scripts/test_retrieval.py --question "How does SelfCheckGPT detect hallucinations?" --mode hybrid --no-rerank --year 2023 --author Manakul --section SelfCheckGPT
-```
-
-The command outputs a structured JSON answer with citation details. **Live generation uses the OpenAI API and may incur charges.** A local Streamlit/FastAPI interface is also available.
+The public URL is added here after the final deployment is verified.
 
 ## Corpus
-
-The current corpus contains **8 papers, 250 PDF pages, and 1,001 text chunks**:
 
 | ID | Paper |
 |---|---|
 | P001 | A Survey on Hallucination in Large Language Models |
-| P002 | SelfCheckGPT: Zero-Resource Black-Box Hallucination Detection for Generative Large Language Models |
-| P003 | FActScore: Fine-grained Atomic Evaluation of Factual Precision in Long Form Text Generation |
+| P002 | SelfCheckGPT: Zero-Resource Black-Box Hallucination Detection |
+| P003 | FActScore: Fine-grained Atomic Evaluation of Factual Precision |
 | P004 | TruthfulQA: Measuring How Models Mimic Human Falsehoods |
 | P005 | Retrieval Augmentation Reduces Hallucination in Conversation |
 | P006 | Survey of Hallucination in Natural Language Generation |
-| P007 | HaluEval: A Large-Scale Hallucination Evaluation Benchmark for Large Language Models |
+| P007 | HaluEval: A Large-Scale Hallucination Evaluation Benchmark |
 | P008 | Chain-of-Verification Reduces Hallucination in Large Language Models |
 
-## Results
+Chunking is paragraph-aware, page-scoped, with a **1,500-character target** and **200-character overlap**. Every chunk preserves paper ID, PDF page, title, authors, year, section, and review flags.
 
-The completed **117-question, eight-paper benchmark** produced 79 complete answers,
-27 partial answers, seven abstentions, three clarifications and one generation
-error. Combined citation validation was 99.07% (106/107 checked); judge coverage
-was 109/117. Mean judged factual accuracy was 95.63% on 101 applicable questions,
-not all 117. Mean pipeline latency was 3.80 seconds and estimated total evaluation
-cost was $1.03060, including judging. Rubrics remain human-unverified. See
-[the full benchmark review](docs/full_benchmark_review.md) for exact denominators,
-costs and failure analysis. Historical results below describe earlier versions.
-
-### Retrieval — preliminary pilot
-
-A **20-question draft pilot** compared four retrieval methods. These relevance labels were **not human-approved**; results are exploratory, not a validated final retrieval benchmark. The pilot predates the P006-P008 corpus expansion and must be rerun for current numbers.
-
-| Retrieval method | Recall@5 | MRR@10 | Mean search time |
-|---|---:|---:|---:|
-| BM25 | 0.825 | 0.702 | 6.7 ms |
-| Vector | 0.700 | 0.596 | 26.7 ms |
-| **Hybrid (RRF)** | **0.900** | **0.733** | 35.6 ms |
-| Hybrid + reranker | 0.775 | 0.572 | 1.55 s |
-
-Source: `docs/retrieval_results.md`. These timings exclude initialization.
-
-### Generation — historical 105-question live benchmark
-
-This table is the previous five-paper run. The current `eval/benchmark.v2.jsonl` contains **117 questions** after adding P006-P008; a new live run is required for updated numbers.
-
-One full run of **105 questions** using `gpt-5.4-nano` for generation and an optional `gpt-5.4-mini` LLM judge produced:
+## Results — 117-question benchmark
 
 | Metric | Result |
 |---|---:|
-| Questions processed | 105 / 105 |
-| Complete answers | 64 (61.0%) |
-| Partial answers | 25 (23.8%) |
-| Errors | 8 (7.6%) |
-| Abstentions / clarification requests | 5 / 3 |
-| Expected-status agreement | 72.4% |
-| Citation structural/quote validation | 91.8% (89/97 checked) |
-| LLM-judged factual accuracy | 94.5% on successfully judged cases only |
-| LLM-judged completeness | 90.4% on successfully judged cases only |
-| LLM-judged semantic citation support | 96.4% on successfully judged cases only |
-| Judge coverage | 60/105 (57.1%); 37 judge-validation errors |
-| Mean / median / p95 latency | 4.37 s / 3.68 s / 9.63 s |
-| Generation / judge API requests | 117 / 97 |
-| Automated tests | 198 passed in the historical run; current integration suite: 362 |
+| Questions processed | 117 / 117 |
+| Complete / partial | 79 / 27 |
+| Abstained / clarification / error | 7 / 3 / 1 |
+| Citation validation | 99.07% (106/107 checked) |
+| Judge coverage | 109 / 117 |
+| Factual accuracy | 95.63% on 101 applicable questions |
+| Completeness | 85.32% on 109 judged questions |
+| Semantic citation support | 98.04% on 101 judged questions |
+| Mean / p95 latency | 3.80 s / 8.24 s |
+| Estimated evaluation cost | $1.03060 including judging |
 
-**Evaluation limitations:** The benchmark labels and rubrics have **not been human-verified**. Semantic scores cover only the successfully judged subset and **must not be reported as accuracy over all 105 questions**. Citation validation checks source IDs, quotations, and structure; it is not the same as semantic citation support. Estimated API cost was not calculated.
+**Evaluation limits:** benchmark rubrics and labels are **not human-verified**. These are automated judge scores and must be reported with their denominators, not as accuracy over all 117 questions. See [`docs/full_benchmark_review.md`](docs/full_benchmark_review.md).
 
-The main observed weaknesses are multi-paper comparisons, citation-validation errors, and judge-output validation failures. See the generated `report.md`, `answers.md`, `per_question.csv`, and `summary.json` from the full evaluation run for details.
+## Quick start
 
-## Evaluation
+Requires **Python 3.11** and an **OpenAI API key**.
 
-Run the automated tests (no live generation calls):
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest -q
+```bash
+python -m pip install -r requirements-web.txt
+cp .env.example .env
+# Add OPENAI_API_KEY to .env
 ```
 
-Run the full live benchmark with semantic judging (requires `eval/full_benchmark.py` in your current working tree):
+Prepare the corpus and index if they are not already present:
 
-```powershell
-.\.venv\Scripts\python.exe -u eval/full_benchmark.py run --live --max-requests 240 --judge-model gpt-5.4-mini --judge-budget 120
+```bash
+python -m src.ingestion.extract
+python -m src.ingestion.clean
+python -m src.ingestion.chunk
+python scripts/build_index.py --device cpu
 ```
 
-This command may make up to **240 generation requests** and **120 judge requests**. Saved reports are written under `eval/results/full-<timestamp>/`. Do not run the live benchmark merely to view previous results.
+Start the backend:
 
-## Repository
+```bash
+python -m uvicorn app.api:app --host 127.0.0.1 --port 8000
+```
 
-| Path | Contents |
+Start the frontend in a second terminal:
+
+```bash
+RESEARCHLENS_API_URL=http://127.0.0.1:8000 \
+  python -m streamlit run app/streamlit_app.py
+```
+
+Ask a question from the CLI:
+
+```bash
+python scripts/ask_researchlens.py --live \
+  --question "How does SelfCheckGPT detect hallucinations?" \
+  --paper-ids P002
+```
+
+Run the tests:
+
+```bash
+python -m pytest -q
+```
+
+> Live generation calls the OpenAI API and may incur charges. No API key is committed.
+
+## Documentation
+
+- [Web application setup](docs/web_app.md)
+- [Standalone Streamlit Cloud deployment](docs/streamlit_cloud.md)
+- [Oracle ARM + FastAPI deployment](docs/deployment.md)
+- [Full 117-question benchmark review](docs/full_benchmark_review.md)
+- [Retrieval design](docs/retrieval_design.md)
+- [Generation design](docs/generation_design.md)
+- [Corpus notes](docs/corpus_notes.md)
+
+## Team contributions
+
+| Member | Contribution |
 |---|---|
-| `data/raw/` | Eight scientific PDFs |
-| `app/` | FastAPI backend, Streamlit HTTP client/interface, feedback |
-| `data/processed/` | Extracted pages, cleaned text, and chunks (generated locally) |
-| `data/indexes/` | Cached embeddings and index metadata (generated locally) |
-| `src/ingestion/` | PDF extraction, cleaning, and chunking |
-| `src/retrieval/` | BM25, vector similarity, RRF fusion, and optional reranking |
-| `src/generation/` | Prompting, evidence selection, OpenAI generation, and citation validation |
-| `scripts/` | Index building and question-answering commands |
-| `eval/` | Benchmark dataset, scoring, judge, and evaluation tools |
-| `tests/` | Unit and regression tests |
-| `docs/` | Corpus, retrieval, and generation design notes |
-
-Detailed system design: [`docs/retrieval_design.md`](docs/retrieval_design.md) · [`docs/generation_design.md`](docs/generation_design.md) · Preliminary retrieval analysis: [`docs/retrieval_results.md`](docs/retrieval_results.md).
+| Youssef Sassi | PDF extraction, cleaning, chunking, corpus provenance |
+| Nour Guidara | Hybrid retrieval, retrieval evaluation, benchmark/reporting |
+| Asma Turki | Generation, reliability, API cost tracking, deployment preparation |
+| Emna Smaali | Metadata and filtering, corpus expansion, FastAPI/Streamlit integration, deployment |
 
 ## Limitations
 
-ResearchLens currently covers eight papers. PDF extraction can be unreliable for equations and tables; multi-paper comparisons sometimes omit requested details; and generated responses can fail strict citation validation. The LLM judge still requires reliability improvements and human-reviewed evaluation labels. CLI and local Streamlit/FastAPI interfaces are available; a remote service has not been deployed.
+- Benchmark labels and rubrics remain human-unverified.
+- PDF extraction can damage equations, tables, and reading order; flagged chunks are excluded from evidence.
+- The public demo is not yet verified; the passcode is a temporary course-demo control.
+- Feedback and demo allowances are local and may reset on cloud redeployment.
+- There is no conversation memory; each question is independent.
