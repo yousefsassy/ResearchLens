@@ -2,6 +2,8 @@ import json
 import re
 from pathlib import Path
 
+from .metadata import DEFAULT_MANIFEST, load_paper_metadata
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -10,6 +12,17 @@ OUTPUT_FILE = PROJECT_ROOT / "data" / "processed" / "chunks.jsonl"
 
 TARGET_CHARS = 1500
 OVERLAP_CHARS = 200
+DEFAULT_SECTION = "Front Matter"
+
+# Section headings are deliberately conservative. They are used as metadata
+# for filtering, not as a claim that PDF extraction found every heading.
+NAMED_SECTIONS = re.compile(
+    r"^(Abstract|Introduction|Related Work|Background|Methods?|Methodology|"
+    r"Approach|Experiments?|Experimental Setup|Evaluation|Results?|Discussion|"
+    r"Limitations?|Conclusions?|References|Appendix(?:\s+[A-Z0-9.]+)?)\b",
+    re.IGNORECASE,
+)
+NUMBERED_SECTION = re.compile(r"^(\d+(?:\.\d+)*)[.)]?\s+([A-Za-z][^.]{1,80})$")
 
 
 def split_paragraphs(text):
@@ -96,8 +109,49 @@ def tail_overlap(text, max_chars):
     return tail.strip()
 
 
-def chunk_page(text):
-    """Create overlapping chunks from one cleaned PDF page."""
+def detect_section(text):
+    """Return a conservative section heading from the start of a text unit.
+
+    PDF extraction often leaves Markdown markers around headings. The function
+    removes those markers, accepts short numbered headings and common paper
+    section names, and returns None for ordinary sentences.
+    """
+    lines = [line.strip() for line in str(text).splitlines() if line.strip()]
+
+    if not lines:
+        return None
+
+    first = re.sub(r"[*_#`]", "", lines[0]).strip()
+    first = re.sub(r"\s+", " ", first)
+
+    if not first or len(first) > 100:
+        return None
+
+    numbered = NUMBERED_SECTION.match(first)
+
+    if numbered:
+        title = numbered.group(2).strip()
+
+        # A heading is short and does not end like a sentence. This avoids
+        # treating a numbered list item or a number-heavy table row as a section.
+        if len(title.split()) <= 12 and not title.endswith((".", "?", "!")):
+            return f"{numbered.group(1)} {title}"
+
+    named = NAMED_SECTIONS.match(first)
+
+    if named:
+        return named.group(1).strip().title()
+
+    return None
+
+
+def chunk_page_with_sections(text, start_section=DEFAULT_SECTION):
+    """Create overlapping chunks and attach the section that contains each one.
+
+    Chunk boundaries are identical to :func:`chunk_page`; sections are carried
+    across pages by the caller so a paper that starts a page inside a section
+    does not reset that section.
+    """
 
     paragraphs = split_paragraphs(text)
 
@@ -109,8 +163,15 @@ def chunk_page(text):
 
     chunks = []
     current = ""
+    current_section = start_section or DEFAULT_SECTION
+    chunk_section = current_section
 
     for unit in units:
+        heading = detect_section(unit)
+
+        if heading:
+            current_section = heading
+
         candidate = (
             unit
             if not current
@@ -118,11 +179,13 @@ def chunk_page(text):
         )
 
         if len(candidate) <= TARGET_CHARS:
+            if not current:
+                chunk_section = current_section
             current = candidate
             continue
 
         if current:
-            chunks.append(current.strip())
+            chunks.append((current.strip(), chunk_section))
 
             overlap = tail_overlap(current, OVERLAP_CHARS)
 
@@ -137,13 +200,22 @@ def chunk_page(text):
                 current = candidate
             else:
                 current = unit
+
+            chunk_section = current_section
         else:
+            chunk_section = current_section
             current = unit
 
     if current:
-        chunks.append(current.strip())
+        chunks.append((current.strip(), chunk_section))
 
     return chunks
+
+
+def chunk_page(text):
+    """Create overlapping chunks from one cleaned PDF page."""
+
+    return [chunk_text for chunk_text, _ in chunk_page_with_sections(text)]
 
 
 def write_jsonl(path, records):
@@ -166,8 +238,14 @@ def main():
             "clean_pages.jsonl is missing. Run cleaning first."
         )
 
+    try:
+        papers = load_paper_metadata(DEFAULT_MANIFEST)
+    except ValueError as error:
+        raise SystemExit(f"Paper metadata error: {error}") from error
+
     output_records = []
     seen_chunk_ids = set()
+    current_sections = {}
 
     with INPUT_FILE.open("r", encoding="utf-8") as file:
         for line_number, line in enumerate(file, start=1):
@@ -195,9 +273,34 @@ def main():
             if not text.strip():
                 continue
 
-            page_chunks = chunk_page(text)
+            paper = papers.get(paper_id)
 
-            for chunk_number, chunk_text in enumerate(
+            if paper is None:
+                raise SystemExit(
+                    f"Paper {paper_id} is missing from {DEFAULT_MANIFEST}"
+                )
+
+            if paper["pdf_filename"] != pdf_filename:
+                raise SystemExit(
+                    f"Paper {paper_id} has pdf_filename {paper['pdf_filename']!r} "
+                    f"in the manifest but {pdf_filename!r} in clean_pages.jsonl"
+                )
+
+            start_section = current_sections.get(paper_id, DEFAULT_SECTION)
+            page_chunks = chunk_page_with_sections(text, start_section)
+
+            # Carry the last heading seen on this page forward, even when a
+            # chunk starts in one section and ends in another.
+            page_section = start_section
+            for paragraph in split_paragraphs(text):
+                heading = detect_section(paragraph)
+                if heading:
+                    page_section = heading
+
+            if page_chunks:
+                current_sections[paper_id] = page_section
+
+            for chunk_number, (chunk_text, section) in enumerate(
                 page_chunks,
                 start=1,
             ):
@@ -220,6 +323,13 @@ def main():
                     "chunk_index": chunk_number,
                     "text": chunk_text,
                     "char_count": len(chunk_text),
+                    "title": paper["title"],
+                    "authors": paper["authors"],
+                    "year": paper["year"],
+                    "category": paper["category"],
+                    "source_url": paper["source_url"],
+                    "license": paper["license"],
+                    "section": section,
                     "needs_review": page.get("needs_review", False),
                     "review_flags": page.get("review_flags", []),
                 }

@@ -48,14 +48,32 @@ The cleaned research papers are divided into smaller text chunks for downstream 
 **Validation results:**
 
 - Input: 156 cleaned PDF pages across 5 research papers
-- Output: 612 chunks
+- Output: the current build reports 638 chunks
 - Invalid records: 0
 - Duplicate chunk IDs: 0
 - Empty chunks: 0
 - Chunks exceeding 1,800 characters: 0
-- Chunks carrying page-level review flags: 245
+- Chunks carrying page-level review flags: 95 across 29 pages
 
-Chunking is structurally validated. Manual inspection of short chunks and flagged source regions remains necessary before treating all chunks as reliable evidence.
+The 612-chunk figure in earlier notes came from an older extraction. The current corpus and index must be regenerated together and the exact count recorded after each build. Chunking is structurally validated; manual inspection of short chunks and flagged source regions remains necessary before treating all chunks as reliable evidence.
+
+### Metadata
+
+Each chunk carries paper-level metadata from `data/papers_manifest.csv` plus one inferred section:
+
+| Field | Source | Purpose |
+|---|---|---|
+| `title` | manifest | Human-readable source name |
+| `authors` | manifest | Author filtering and display |
+| `year` | manifest | Year filtering |
+| `category` | manifest | Collection-level grouping |
+| `source_url` | manifest | Provenance and licence verification |
+| `license` | manifest | Usage terms recorded at collection time |
+| `section` | inferred from page headings | Section filtering and citation context |
+
+The manifest is required before chunking. Missing or duplicate paper IDs, missing fields, and non-integer years fail the build instead of producing ambiguous citations.
+
+Section detection is deliberately conservative. It recognizes short numbered headings such as `3.1 Definition` and common headings such as `Abstract`, `Introduction`, `Methods`, `Results`, `Limitations`, `Conclusion`, `References`, and `Appendix`. A chunk that begins in one section and ends in another is assigned the section in which the chunk starts. The last heading seen on a page is carried to the next page so section state does not reset at a page boundary. This is a filtering aid, not a complete document-structure parser.
 
 **Post-chunking cleanup:**
 

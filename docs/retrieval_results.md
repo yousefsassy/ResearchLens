@@ -14,7 +14,7 @@ Current corpus: **5 papers, 156 PDF pages, 638 chunks**, including 95 flagged ch
 
 Corpus fingerprint: `817fa270d2b7842bd86dbdb0a5d5f89d08170eb3c5937a184851098f4cab1713`.
 
-Earlier notes reported 612 chunks, 71 flagged pages and 245 flagged chunks, but those processed outputs were absent and could not be reproduced. The unchanged ingestion code generated the current corpus using PyMuPDF 1.28.2 and PyMuPDF4LLM 0.3.4 legacy extraction; that mode reported ignoring `use_ocr`. Extraction differences can change boundaries and flags. Fewer flags do not establish better extraction. Reconcile this corpus with Member 1; the manifest remains header-only.
+Earlier notes reported 612 chunks, 71 flagged pages and 245 flagged chunks, but those processed outputs were absent and could not be reproduced. The unchanged ingestion code generated the current corpus using PyMuPDF 1.28.2 and PyMuPDF4LLM 0.3.4 legacy extraction; that mode reported ignoring `use_ocr`. Extraction differences can change boundaries and flags. Fewer flags do not establish better extraction. The manifest now records title, authors, year, category, source URL, licence, filename, version, and page count for all five papers. Chunks must be regenerated to carry this metadata; the existing index must then be rebuilt because the corpus fingerprint changes.
 
 Historical CPU index build: 128.114 s; valid-index reuse: 0.059823 s. Saved files totalled 996,308 bytes. These observations are not new handoff measurements.
 
