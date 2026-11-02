@@ -13,7 +13,7 @@
 | P007 | 16 | 61 |
 | P008 | 19 | 51 |
 
-Current corpus: **8 papers, 250 PDF pages, 1,001 chunks**, including 104 flagged chunks across 32 pages. The previous index covered 638 x 384 normalized float32 values; the expanded corpus requires a rebuild. Until that rebuild, hybrid and vector retrieval will reject the stale index, while BM25 remains usable.
+Current corpus: **8 papers, 250 PDF pages, 1,001 chunks**, including 104 flagged chunks across 32 pages. The expanded index has been rebuilt to 1,001 x 384 normalized float32 values; hybrid and vector retrieval now use the new corpus. The previous index covered 638 x 384 values.
 
 Corpus fingerprint: `3bd5c264d591d8c386c7859fc61c4cfe127e0b288c3c6622bcd738d4c3980c83`.
 
