@@ -187,19 +187,24 @@ That benchmark predates this web integration and was not rerun for it.
 
 ## Deployment boundary
 
-No hosting provider is configured or selected. Provision Python 3.11, the same
-corpus/index/cache, persistent feedback storage if desired, and outbound OpenAI
-access. Keep the API/key private to the backend and configure the UI's API URL.
-Start with one worker; additional workers duplicate model memory. Local warmed
-retrieval used about 617 MiB peak RSS in review; this is not a remote capacity
-guarantee. Existing RAM-backed caches must not be relied on in deployment.
-The prototype has no authentication layer; do not expose the professor's funded
-generation endpoint publicly without an appropriate access policy.
+The approved deployment is Streamlit Community Cloud → HTTPS/Caddy → Oracle ARM
+FastAPI, with one worker and the unchanged NumPy/BM25/BGE retrieval. See the
+[deployment runbook](deployment.md) for exact manual commands, pinned requirements,
+artifact provisioning, secrets and remaining ARM/public acceptance checks.
 
-The researcher UI no longer displays the development curl/API example; developer
-request examples remain in this document. For the current Streamlit Community
-Cloud + Oracle ARM assessment, artifact transfer checks and manual setup sequence,
-see [deployment readiness](deployment_readiness.md). No deployment configuration
-or cloud resource was created as part of that assessment.
-Final cleanup verification passed 362 offline tests, including both feedback
-ratings and the absence of the debugging example; no paid inference was needed.
+Local development stays unauthenticated when no API token or require-auth setting
+is exported. Production protects `/ask` and `/feedback` using the server-to-server
+`RESEARCHLENS_API_TOKEN`, while `/health` and `/papers` remain readable. Set
+`RESEARCHLENS_REQUIRE_AUTH=true` on the backend. The Streamlit server forwards the
+token only to POST endpoints; remote authenticated connections require HTTPS.
+The provider key remains exclusively on the backend. Frontend diagnostics never
+include raw response bodies or authentication headers.
+
+The demo uses global per-minute limits plus a persistent cumulative question
+allowance, with the existing per-question generation attempt cap. A separate
+Streamlit `RESEARCHLENS_DEMO_PASSWORD` gates attendee access. This is a university
+demo policy, not per-user identity or a dollar-accurate spend cap. One worker and
+one backend process are required. The runbook explains operator-controlled resets,
+feedback persistence and billing monitoring. No cloud resources have been created.
+The researcher UI still omits the debugging curl/API example; developer request
+examples remain in this document.

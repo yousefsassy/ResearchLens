@@ -4,12 +4,13 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 import os
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.schemas import (AskRequest, FeedbackRequest, FeedbackResponse,
                          HealthResponse, PaperSummary)
 from app.service import InvalidPaperScope, ResearchService
+from app.security import DemoGuard
 from src.generation.schemas import ErrorInfo, GenerationResponse
 
 ERROR_STATUS = {
@@ -28,8 +29,15 @@ def _cors_origins() -> list[str]:
     return [origin.strip() for origin in configured.split(",") if origin.strip()]
 
 
-def create_app(service: ResearchService | None = None) -> FastAPI:
+def create_app(service: ResearchService | None = None, *, guard: DemoGuard | None = None) -> FastAPI:
     service = service or ResearchService()
+    guard = guard or DemoGuard.from_env()
+
+    def allow_ask(authorization: str | None = Header(default=None)):
+        guard.admit(authorization, "ask")
+
+    def allow_feedback(authorization: str | None = Header(default=None)):
+        guard.admit(authorization, "feedback")
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -56,6 +64,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.get("/health", response_model=HealthResponse)
     def health(response: Response) -> HealthResponse:
         result = service.health()
+        if not guard.ready:
+            result = result.model_copy(update={"status": "degraded"})
         response.status_code = 200 if result.status == "ok" else 503
         return result
 
@@ -66,7 +76,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         except (OSError, ValueError, KeyError):
             raise HTTPException(status_code=503, detail="The paper catalog is unavailable.") from None
 
-    @app.post("/ask", response_model=GenerationResponse)
+    @app.post("/ask", response_model=GenerationResponse, dependencies=[Depends(allow_ask)])
     def ask(request: AskRequest, response: Response) -> GenerationResponse:
         try:
             result = service.ask(request)
@@ -80,7 +90,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             response.status_code = ERROR_STATUS.get(result.error.code if result.error else "", 500)
         return result
 
-    @app.post("/feedback", response_model=FeedbackResponse)
+    @app.post("/feedback", response_model=FeedbackResponse, dependencies=[Depends(allow_feedback)])
     def feedback(request: FeedbackRequest) -> FeedbackResponse:
         try:
             service.record_feedback(request)

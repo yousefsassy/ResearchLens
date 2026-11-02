@@ -34,6 +34,11 @@ Streamlit calls FastAPI over HTTP; only FastAPI loads BGE and the OpenAI key.
 See [web setup and troubleshooting](docs/web_app.md) for installation, optional
 filters, readiness, response statuses and examples. No remote service is deployed.
 
+For the prepared **Streamlit Community Cloud + Oracle ARM** deployment, follow
+[the deployment runbook](docs/deployment.md). It includes pinned frontend/backend
+dependencies, prebuilt artifact packaging, Caddy/systemd templates and demo
+authentication with a persistent request allowance. No cloud deployment exists yet.
+
 ## Run
 
 From the project root, prepare the corpus and vector index if they are not already present:

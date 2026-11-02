@@ -1,5 +1,6 @@
 .env
 .venv/
+.python/
 venv/
 __pycache__/
 *.pyc
@@ -10,6 +11,7 @@ tmp/
 data/indexes/
 data/processed/
 data/feedback/
+data/demo/
 
 eval/results/*
 !eval/results/final/

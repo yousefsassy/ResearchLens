@@ -1,4 +1,4 @@
-"""Small HTTP adapter for Streamlit; never loads credentials or RAG resources."""
+"""Small HTTP adapter; only the server-to-server demo token is used here."""
 import os
 from urllib.parse import urlsplit
 
@@ -14,7 +14,7 @@ class APIClientError(Exception):
 
 
 class ResearchAPIClient:
-    def __init__(self, base_url=None, client=None):
+    def __init__(self, base_url=None, client=None, *, api_token=None):
         base_url = (base_url or os.environ.get("RESEARCHLENS_API_URL", "http://127.0.0.1:8000")).rstrip("/")
         try:
             parsed = urlsplit(base_url)
@@ -25,6 +25,9 @@ class ResearchAPIClient:
         except ValueError:
             raise APIClientError("RESEARCHLENS_API_URL must be a valid HTTP URL without credentials, query or fragment.") from None
         self.base_url = base_url
+        self._token = api_token if api_token is not None else os.environ.get("RESEARCHLENS_API_TOKEN", "")
+        if self._token and parsed.scheme != "https" and parsed.hostname not in {"localhost", "127.0.0.1", "::1", "testserver"}:
+            raise APIClientError("Authenticated remote API connections require HTTPS.")
         self._owned = client is None
         self._client = client or httpx.Client(base_url=base_url,
             timeout=httpx.Timeout(400, connect=5, pool=5), transport=httpx.HTTPTransport(retries=0))
@@ -34,6 +37,8 @@ class ResearchAPIClient:
             self._client.close()
 
     def _request(self, method, path, **kwargs):
+        if method == "POST" and self._token:
+            kwargs["headers"] = {**kwargs.get("headers", {}), "Authorization": "Bearer " + self._token}
         try:
             return self._client.request(method, self.base_url + path, **kwargs)
         except httpx.TimeoutException:
@@ -50,7 +55,10 @@ class ResearchAPIClient:
 
     @staticmethod
     def _http_error(response):
-        messages = {422: "Invalid request. Check the question, paper IDs and optional filters.",
+        messages = {401: "The frontend API authentication is not configured correctly.",
+                    403: "The backend denied this request.",
+                    429: "The demonstration rate limit or question allowance has been reached. Contact the demo owner.",
+                    422: "Invalid request. Check the question, paper IDs and optional filters.",
                     502: "The generation provider failed. No answer is available.",
                     503: "The backend is not ready or is busy. Check its index, configuration and logs.",
                     504: "The generation provider timed out. No automatic retry was sent."}

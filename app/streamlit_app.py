@@ -6,6 +6,7 @@ Run locally:
 from __future__ import annotations
 
 import os
+import hmac
 from pathlib import Path
 import sys
 from uuid import uuid4
@@ -30,8 +31,8 @@ st.set_page_config(
 
 
 @st.cache_resource
-def get_client(api_url: str) -> ResearchAPIClient:
-    return ResearchAPIClient(api_url)
+def get_client(api_url: str, api_token: str = "") -> ResearchAPIClient:
+    return ResearchAPIClient(api_url, api_token=api_token)
 
 
 def api_url() -> str:
@@ -143,12 +144,24 @@ def render_answer(result, client, response_key) -> None:
 
 def main() -> None:
     st.title("ResearchLens")
+    password = os.environ.get("RESEARCHLENS_DEMO_PASSWORD", "")
+    if password and not st.session_state.get("demo_authorized", False):
+        st.info("Enter the demonstration passcode supplied by the project team.")
+        supplied = st.text_input("Demo passcode", type="password", key="demo_passcode")
+        if st.button("Enter demo"):
+            if hmac.compare_digest(supplied.encode(), password.encode()):
+                st.session_state["demo_authorized"] = True
+                st.session_state.pop("demo_passcode", None)
+                st.rerun()
+            else:
+                st.error("Incorrect demonstration passcode.")
+        st.stop()
     st.caption(
         "Citation-grounded question answering over a curated paper collection. "
         "Each question is independent; there is no conversation memory."
     )
     try:
-        client = get_client(api_url())
+        client = get_client(api_url(), os.environ.get("RESEARCHLENS_API_TOKEN", ""))
         health = client.health()
         papers = client.papers()
     except APIClientError as error:

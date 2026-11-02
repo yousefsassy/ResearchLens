@@ -1,5 +1,10 @@
 # Deployment readiness assessment — 2 November 2026
 
+> Historical assessment from the integration branch. Deployment scripts, authentication
+> and a persistent demo allowance have since been prepared. Use the current
+> [deployment runbook](deployment.md), including its verified archive restore commands,
+> instead of the illustrative tar commands below. No cloud deployment exists yet.
+
 This is an assessment and manual handoff, not a deployment. No Oracle resources,
 production configuration, public endpoint or hosting account was created. The
 existing NumPy index and BM25 implementation are preserved. Hosting can be free;
