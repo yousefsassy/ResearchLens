@@ -9,18 +9,21 @@
 | P003 | 25 | 96 |
 | P004 | 39 | 106 |
 | P005 | 20 | 92 |
+| P006 | 59 | 251 |
+| P007 | 16 | 61 |
+| P008 | 19 | 51 |
 
-Current corpus: **5 papers, 156 PDF pages, 638 chunks**, including 95 flagged chunks across 29 pages. The index has 638 x 384 normalized float32 values. Handoff validation confirmed the index matches current corpus metadata, ordered IDs, model settings and file checksum without rebuilding or loading models.
+Current corpus: **8 papers, 250 PDF pages, 1,001 chunks**, including 104 flagged chunks across 32 pages. The previous index covered 638 x 384 normalized float32 values; the expanded corpus requires a rebuild. Until that rebuild, hybrid and vector retrieval will reject the stale index, while BM25 remains usable.
 
-Corpus fingerprint: `817fa270d2b7842bd86dbdb0a5d5f89d08170eb3c5937a184851098f4cab1713`.
+Corpus fingerprint: `3bd5c264d591d8c386c7859fc61c4cfe127e0b288c3c6622bcd738d4c3980c83`.
 
-Earlier notes reported 612 chunks, 71 flagged pages and 245 flagged chunks, but those processed outputs were absent and could not be reproduced. The unchanged ingestion code generated the current corpus using PyMuPDF 1.28.2 and PyMuPDF4LLM 0.3.4 legacy extraction; that mode reported ignoring `use_ocr`. Extraction differences can change boundaries and flags. Fewer flags do not establish better extraction. The manifest now records title, authors, year, category, source URL, licence, filename, version, and page count for all five papers. Chunks must be regenerated to carry this metadata; the existing index must then be rebuilt because the corpus fingerprint changes.
+Earlier notes reported 612 chunks, 71 flagged pages and 245 flagged chunks, but those processed outputs were absent and could not be reproduced. The unchanged ingestion code generated the current corpus using PyMuPDF 1.28.2 and PyMuPDF4LLM 0.3.4 legacy extraction; that mode reported ignoring `use_ocr`. Extraction differences can change boundaries and flags. Fewer flags do not establish better extraction. The manifest now records title, authors, year, category, source URL, licence, filename, version, and page count for all eight papers. Chunks must be regenerated to carry this metadata; the index must then be rebuilt because the corpus fingerprint changes.
 
-Historical CPU index build: 128.114 s; valid-index reuse: 0.059823 s. Saved files totalled 996,308 bytes. These observations are not new handoff measurements.
+Historical 638-chunk CPU index build: 128.114 s; valid-index reuse: 0.059823 s. Saved files totalled 996,308 bytes. These observations are not new handoff measurements.
 
 ## Tests
 
-Handoff run: **62 passed in 0.69 s**, no skips or failures.
+Current suite: **216 passed** after the metadata and corpus expansion changes.
 
 Tests cover validation, index integrity/alignment, ranking, filtering, fusion, reranking, lazy loading, citation preservation, evaluation calculations and the ablation CLI. Neural unit tests use fakes; the corpus integration test uses real BM25. Historical real-model smoke results demonstrate all four configurations, not retrieval accuracy.
 

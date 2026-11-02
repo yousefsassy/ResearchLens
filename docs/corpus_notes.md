@@ -47,15 +47,15 @@ The cleaned research papers are divided into smaller text chunks for downstream 
 
 **Validation results:**
 
-- Input: 156 cleaned PDF pages across 5 research papers
-- Output: the current build reports 638 chunks
+- Input: 250 cleaned PDF pages across 8 research papers
+- Output: the current build reports 1,001 chunks
 - Invalid records: 0
 - Duplicate chunk IDs: 0
 - Empty chunks: 0
 - Chunks exceeding 1,800 characters: 0
-- Chunks carrying page-level review flags: 95 across 29 pages
+- Chunks carrying page-level review flags: 104 across 32 pages
 
-The 612-chunk figure in earlier notes came from an older extraction. The current corpus and index must be regenerated together and the exact count recorded after each build. `requirements.txt` pins PyMuPDF 1.28.2 and PyMuPDF4LLM 0.3.4; that combination reproduces the current 638-chunk, 95-flagged-chunk corpus. Chunking is structurally validated; manual inspection of short chunks and flagged source regions remains necessary before treating all chunks as reliable evidence.
+The 612-chunk figure in earlier notes came from an older extraction. The current corpus and index must be regenerated together and the exact count recorded after each build. `requirements.txt` pins PyMuPDF 1.28.2 and PyMuPDF4LLM 0.3.4; that combination reproduces the current 1,001-chunk, 104-flagged-chunk corpus. Chunking is structurally validated; manual inspection of short chunks and flagged source regions remains necessary before treating all chunks as reliable evidence.
 
 ### Metadata
 

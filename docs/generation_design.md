@@ -56,10 +56,13 @@ matching `data/indexes/`, retrieval dependencies, and cached BGE model. Obtain t
 artifacts from the team; do not regenerate them casually. Generation does not
 replace BGE with Qwen or change the retrieval index.
 
-The documented 638-chunk corpus fingerprint is
-`817fa270d2b7842bd86dbdb0a5d5f89d08170eb3c5937a184851098f4cab1713`.
-The original 612-chunk outputs remain unavailable. Corpus/index/label versions must
-match. Missing artifacts return `retrieval_unavailable` before generation.
+The current 1,001-chunk corpus fingerprint is
+`3bd5c264d591d8c386c7859fc61c4cfe127e0b288c3c6622bcd738d4c3980c83`.
+The earlier 638-chunk fingerprint was
+`817fa270d2b7842bd86dbdb0a5d5f89d08170eb3c5937a184851098f4cab1713`; it belongs to
+the previous five-paper index and must not be mixed with the expanded corpus.
+Corpus/index/label versions must match. Missing artifacts return
+`retrieval_unavailable` before generation.
 
 For mocked tests without PDF/neural libraries:
 
@@ -275,8 +278,8 @@ run, structural validity throughout, .90 faithfulness/citation accuracy, .80 cor
 and no factual answers or failed abstentions on intentionally unsupported cases.
 
 One live fixed-evidence smoke is not a completed pilot or full retrieval test.
-The 120-case assignment target (40 development/80 held-out: 25 general, 45 scoped,
-25 comparison, 15 insufficient, 10 extraction-sensitive) still needs human annotation
-with Member 4. Next week's optimization can target 50% p95 latency reduction with
-at most two accuracy points lost on frozen labels. UI/service/deployment, parallel
-requests, and automated semantic verifiers remain future work.
+The expanded `eval/benchmark.v2.jsonl` contains 117 cases: the original 105 plus
+12 questions for P006-P008. The 120-case assignment target still needs human
+annotation with Member 4. Next week's optimization can target 50% p95 latency
+reduction with at most two accuracy points lost on frozen labels. UI/service/
+deployment, parallel requests, and automated semantic verifiers remain future work.

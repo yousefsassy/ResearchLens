@@ -11,7 +11,7 @@ from src.ingestion.metadata import load_paper_metadata
 def test_manifest_has_one_complete_record_per_paper():
     papers = load_paper_metadata()
 
-    assert set(papers) == {"P001", "P002", "P003", "P004", "P005"}
+    assert set(papers) == {f"P00{i}" for i in range(1, 9)}
     assert papers["P002"]["year"] == 2023
     assert "Manakul" in papers["P002"]["authors"]
     assert papers["P003"]["pdf_filename"] == "P003_factscore.pdf"
