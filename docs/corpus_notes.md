@@ -47,15 +47,33 @@ The cleaned research papers are divided into smaller text chunks for downstream 
 
 **Validation results:**
 
-- Input: 156 cleaned PDF pages across 5 research papers
-- Output: 612 chunks
+- Input: 250 cleaned PDF pages across 8 research papers
+- Output: the current build reports 1,001 chunks
 - Invalid records: 0
 - Duplicate chunk IDs: 0
 - Empty chunks: 0
 - Chunks exceeding 1,800 characters: 0
-- Chunks carrying page-level review flags: 245
+- Chunks carrying page-level review flags: 104 across 32 pages
 
-Chunking is structurally validated. Manual inspection of short chunks and flagged source regions remains necessary before treating all chunks as reliable evidence.
+The 612-chunk figure in earlier notes came from an older extraction. The current corpus and index must be regenerated together and the exact count recorded after each build. `requirements.txt` pins PyMuPDF 1.28.2 and PyMuPDF4LLM 0.3.4; that combination reproduces the current 1,001-chunk, 104-flagged-chunk corpus. Chunking is structurally validated; manual inspection of short chunks and flagged source regions remains necessary before treating all chunks as reliable evidence.
+
+### Metadata
+
+Each chunk carries paper-level metadata from `data/papers_manifest.csv` plus one inferred section:
+
+| Field | Source | Purpose |
+|---|---|---|
+| `title` | manifest | Human-readable source name |
+| `authors` | manifest | Author filtering and display |
+| `year` | manifest | Year filtering |
+| `category` | manifest | Collection-level grouping |
+| `source_url` | manifest | Provenance and licence verification |
+| `license` | manifest | Usage terms recorded at collection time |
+| `section` | inferred from page headings | Section filtering and citation context |
+
+The manifest is required before chunking. Missing or duplicate paper IDs, missing fields, and non-integer years fail the build instead of producing ambiguous citations.
+
+Section detection is deliberately conservative. It recognizes short numbered headings such as `3.1 Definition` and common headings such as `Abstract`, `Introduction`, `Methods`, `Results`, `Limitations`, `Conclusion`, `References`, and `Appendix`. A chunk that begins in one section and ends in another is assigned the section in which the chunk starts. The last heading seen on a page is carried to the next page so section state does not reset at a page boundary. This is a filtering aid, not a complete document-structure parser.
 
 **Post-chunking cleanup:**
 
@@ -65,8 +83,7 @@ Four targeted corrections were applied during the cleaning stage:
 - P001, pages 31, 50, and 53: removed repeated running headers.
 - P003, page 24: removed a page-number footer (`12099`).
 
-After regeneration, the total number of chunks decreased from 615 to 612.
-Legitimate short passages, figure captions, and section headings were preserved.
+At the time of the original five-paper cleanup, the total number of chunks decreased from 615 to 612. After adding P006-P008, the current corpus contains 1,001 chunks. Legitimate short passages, figure captions, and section headings were preserved.
 
 The pipeline is structurally validated. However, flagged source regions
 still require manual verification before being used as reliable evidence.

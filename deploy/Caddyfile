@@ -1,0 +1,15 @@
+# Replace with a real DNS hostname pointing at the Oracle public IP.
+# This deliberately non-routable placeholder cannot obtain a public certificate.
+REPLACE_WITH_API_HOSTNAME.invalid {
+	request_body {
+		max_size 16KB
+	}
+	reverse_proxy 127.0.0.1:8000 {
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 400s
+			read_timeout 400s
+			write_timeout 30s
+		}
+	}
+}

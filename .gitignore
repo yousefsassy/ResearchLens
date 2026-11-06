@@ -1,19 +1,19 @@
-# Python environments
-.venv/
-.venv-incomplete/
-
-# Python generated files
-__pycache__/
-*.py[cod]
-
-# Secrets
 .env
-.env.*
-!.env.example
-
-# Generated data (reproducible)
+.venv/
+.python/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.cache/
+tmp/
+.streamlit/secrets.toml
+**/.streamlit/secrets.toml
+data/indexes/
 data/processed/
+data/feedback/
+data/demo/
 
-# Local settings
-.vscode/
-.DS_Store
+eval/results/*
+!eval/results/final/
+!eval/results/final/**

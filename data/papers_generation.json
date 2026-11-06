@@ -1,0 +1,76 @@
+[
+  {
+    "paper_id": "P001",
+    "pdf_filename": "P001_hallucination_survey.pdf",
+    "title": "A Survey on Hallucination in Large Language Models: Principles, Taxonomy, Challenges, and Open Questions",
+    "aliases": [
+      "hallucination survey",
+      "the survey"
+    ]
+  },
+  {
+    "paper_id": "P002",
+    "pdf_filename": "P002_selfcheckgpt.pdf",
+    "title": "SelfCheckGPT: Zero-Resource Black-Box Hallucination Detection for Generative Large Language Models",
+    "aliases": [
+      "SelfCheckGPT",
+      "SelfCheck GPT"
+    ]
+  },
+  {
+    "paper_id": "P003",
+    "pdf_filename": "P003_factscore.pdf",
+    "title": "FActScore: Fine-grained Atomic Evaluation of Factual Precision in Long Form Text Generation",
+    "aliases": [
+      "FActScore",
+      "FAct Score"
+    ]
+  },
+  {
+    "paper_id": "P004",
+    "pdf_filename": "P004_truthfulqa.pdf",
+    "title": "TruthfulQA: Measuring How Models Mimic Human Falsehoods",
+    "aliases": [
+      "TruthfulQA",
+      "Truthful QA"
+    ]
+  },
+  {
+    "paper_id": "P005",
+    "pdf_filename": "P005_retrieval_reduces_hallucination.pdf",
+    "title": "Retrieval Augmentation Reduces Hallucination in Conversation",
+    "aliases": [
+      "retrieval augmentation reduces hallucination",
+      "conversation paper"
+    ]
+  },
+  {
+    "paper_id": "P006",
+    "pdf_filename": "P006_nlg_hallucination_survey.pdf",
+    "title": "Survey of Hallucination in Natural Language Generation",
+    "aliases": [
+      "NLG survey",
+      "Ji survey",
+      "natural language generation survey"
+    ]
+  },
+  {
+    "paper_id": "P007",
+    "pdf_filename": "P007_halueval.pdf",
+    "title": "HaluEval: A Large-Scale Hallucination Evaluation Benchmark for Large Language Models",
+    "aliases": [
+      "HaluEval",
+      "Halu Eval"
+    ]
+  },
+  {
+    "paper_id": "P008",
+    "pdf_filename": "P008_chain_of_verification.pdf",
+    "title": "Chain-of-Verification Reduces Hallucination in Large Language Models",
+    "aliases": [
+      "Chain-of-Verification",
+      "Chain of Verification",
+      "CoVe"
+    ]
+  }
+]
